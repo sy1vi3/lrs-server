@@ -6,6 +6,10 @@ import eclib.apis
 import ecusers
 import ecmodules.queue
 import echelpers as ech
+from datetime import datetime
+import csv
+import files.tokens as tokens
+import requests
 
 async def get_divs(db):
     divs = []
@@ -22,6 +26,7 @@ async def get_divs(db):
 async def calc_rankings(db):
     divs = await get_divs(db)
     div_ranks = {}
+    csv_rows_to_add = []
     for div in divs:
         d_skills = {}
         second_d_skills = {}
@@ -36,13 +41,13 @@ async def calc_rankings(db):
                     in_div = True
             if in_div == True:
                 if row['teamNum'] not in d_skills.keys():
-                    d_skills[row['teamNum']] = [row['score'], row["stopTime"]]
+                    d_skills[row['teamNum']] = [row['score'], row["stopTime"], row['timestamp']]
                 else:
                     if row['score'] > d_skills[row['teamNum']][0] or (row['score'] == d_skills[row['teamNum']][0] and row['stopTime'] > d_skills[row['teamNum']][1]):
                         if row['teamNum'] in second_d_skills.keys():
                             third_d_skills[row['teamNum']] = second_d_skills[row['teamNum']]
                         second_d_skills[row['teamNum']] = d_skills[row['teamNum']]
-                        d_skills[row['teamNum']] = [row['score'], row["stopTime"]]
+                        d_skills[row['teamNum']] = [row['score'], row["stopTime"], row['timestamp']]
                     else:
                         if row['teamNum'] not in second_d_skills.keys():
                             second_d_skills[row['teamNum']] = [row['score'], row["stopTime"]]
@@ -70,13 +75,13 @@ async def calc_rankings(db):
                     in_div = True
             if in_div == True:
                 if row['teamNum'] not in p_skills.keys():
-                    p_skills[row['teamNum']] = [row['score'], row["stopTime"]]
+                    p_skills[row['teamNum']] = [row['score'], row["stopTime"], row['timestamp']]
                 else:
                     if row['score'] > p_skills[row['teamNum']][0] or (row['score'] == p_skills[row['teamNum']][0] and row['stopTime'] > p_skills[row['teamNum']][1]):
                         if row['teamNum'] in second_p_skills.keys():
                             third_p_skills[row['teamNum']] = second_p_skills[row['teamNum']]
                         second_p_skills[row['teamNum']] = p_skills[row['teamNum']]
-                        p_skills[row['teamNum']] = [row['score'], row["stopTime"]]
+                        p_skills[row['teamNum']] = [row['score'], row["stopTime"], row['timestamp']]
                     else:
                         if row['teamNum'] not in second_p_skills.keys():
                             second_p_skills[row['teamNum']] = [row['score'], row["stopTime"]]
@@ -94,11 +99,11 @@ async def calc_rankings(db):
         combined = {}
         for team in d_skills.keys():
             if team in third_d_skills.keys():
-                combined[team] = [[d_skills[team][0], 0, d_skills[team][1], 0], [second_d_skills[team][0], 0, second_d_skills[team][1], 0], [third_d_skills[team][0], 0, third_d_skills[team][1], 0]]
+                combined[team] = [[d_skills[team][0], 0, d_skills[team][1], 0], [second_d_skills[team][0], 0, second_d_skills[team][1], 0], [third_d_skills[team][0], 0, third_d_skills[team][1], 0], [d_skills[team][2], 0]]
             elif team in second_d_skills.keys():
-                combined[team] = [[d_skills[team][0], 0, d_skills[team][1], 0], [second_d_skills[team][0], 0, second_d_skills[team][1], 0], [0, 0, 0, 0]]
+                combined[team] = [[d_skills[team][0], 0, d_skills[team][1], 0], [second_d_skills[team][0], 0, second_d_skills[team][1], 0], [0, 0, 0, 0], [d_skills[team][2], 0]]
             else:
-                combined[team] = [[d_skills[team][0], 0, d_skills[team][1], 0], [0, 0, 0, 0], [0, 0, 0, 0]]
+                combined[team] = [[d_skills[team][0], 0, d_skills[team][1], 0], [0, 0, 0, 0], [0, 0, 0, 0], [d_skills[team][2], 0]]
         for team in p_skills.keys():
             if team in combined.keys():
                 if team in third_p_skills.keys():
@@ -112,6 +117,8 @@ async def calc_rankings(db):
 
                     combined[team][2][1] = third_p_skills[team][0]
                     combined[team][2][3] = third_p_skills[team][1]
+
+                    combined[team][3][1] = p_skills[team][2]
                 elif team in second_p_skills.keys():
                     combined[team][0][0] += p_skills[team][0]
                     combined[team][0][1] = p_skills[team][0]
@@ -120,24 +127,27 @@ async def calc_rankings(db):
 
                     combined[team][1][1] = second_p_skills[team][0]
                     combined[team][1][3] = second_p_skills[team][1]
+
+                    combined[team][3][1] = p_skills[team][2]
                 else:
                     combined[team][0][0] += p_skills[team][0]
                     combined[team][0][1] = p_skills[team][0]
                     combined[team][0][2] += p_skills[team][1]
                     combined[team][0][3] = p_skills[team][1]
+                    combined[team][3][1] = p_skills[team][2]
             else:
                 if team in third_d_skills.keys():
-                    combined[team] = [[p_skills[team][0], p_skills[team][0], 0, p_skills[team][1]], [0, second_p_skills[team][0], 0, second_p_skills[team][1]], [0, third_p_skills[team][0], 0, third_p_skills[team][1]]]
+                    combined[team] = [[p_skills[team][0], p_skills[team][0], 0, p_skills[team][1]], [0, second_p_skills[team][0], 0, second_p_skills[team][1]], [0, third_p_skills[team][0], 0, third_p_skills[team][1]], [0, p_skills[team][2]]]
                 elif team in second_d_skills.keys():
-                    combined[team] = [[p_skills[team][0], p_skills[team][0], 0, p_skills[team][1]], [0, second_p_skills[team][0], 0, second_p_skills[team][1]], [0, 0, 0, 0]]
+                    combined[team] = [[p_skills[team][0], p_skills[team][0], 0, p_skills[team][1]], [0, second_p_skills[team][0], 0, second_p_skills[team][1]], [0, 0, 0, 0], [0, p_skills[team][2]]]
                 else:
-                    combined[team] = [[p_skills[team][0], p_skills[team][0], 0, p_skills[team][1]], [0, 0, 0, 0], [0, 0, 0, 0]]
+                    combined[team] = [[p_skills[team][0], p_skills[team][0], 0, p_skills[team][1]], [0, 0, 0, 0], [0, 0, 0, 0], [0, p_skills[team][2]]]
         ranks_items = list(combined.items())
         rank_items_new = []
         for team in ranks_items:
-            #                     0         1              2              3              4              5              6              7              8
-            #                     name      #combined      #prog          #2nd prog      #2nd driver    #combined time #prog time     #3rd prog      #3rd driver
-            rank_items_new.append([team[0], team[1][0][0], team[1][0][1], team[1][1][1], team[1][1][0], team[1][0][2], team[1][0][3], team[1][2][1], team[1][2][0]])
+            #                     0         1              2              3              4              5              6              7              8              9                   10
+            #                     name      #combined      #prog          #2nd prog      #2nd driver    #combined time #prog time     #3rd prog      #3rd driver    #driver timestamp   #prog time
+            rank_items_new.append([team[0], team[1][0][0], team[1][0][1], team[1][1][1], team[1][1][0], team[1][0][2], team[1][0][3], team[1][2][1], team[1][2][0], team[1][3][0], team[1][3][1]])
         try:
             db_result = await db.select(eclib.db.teams.table_, [("teamNum", "==", rank_items_new[0][0])])
             div_program = db_result[0]['comp']
@@ -158,11 +168,33 @@ async def calc_rankings(db):
             prog_stoptime = listing[6]
             prog_3 = listing[7]
             driver_3 = listing[8]
+            d_timestamp = listing[9]
+            p_timestamp = listing[10]
 
+            driver_attempts_db = await db.select(eclib.db.skills.table_, [(eclib.db.skills.skills_type, "==", 1), (eclib.db.skills.team_num, "==", team)])
+            prog_attempts_db = await db.select(eclib.db.skills.table_, [(eclib.db.skills.skills_type, "==", 2), (eclib.db.skills.team_num, "==", team)])
+
+            driver_attempts = (len(driver_attempts_db))
+            prog_attempts = (len(prog_attempts_db))
+
+            grade_level_db =  await db.select(eclib.db.teams.table_, [(eclib.db.skills.team_num, "==", team)])
+            grade_level = grade_level_db[0]['grade']
+
+            if d_timestamp != 0:
+                d_time = str(datetime.utcfromtimestamp(d_timestamp).strftime(f'%Y-%m-%d{"T"}%H:%M:%S{"Z"}'))
+            else:
+                d_time = ""
+            if p_timestamp != 0:
+                p_time = str(datetime.utcfromtimestamp(p_timestamp).strftime(f'%Y-%m-%d{"T"}%H:%M:%S{"Z"}'))
+            else:
+                p_time = ""
             rank = num
             db_result = await db.select(eclib.db.teams.table_, [("teamNum", "==", team)])
             program = db_result[0]['comp']
 
+            # csv_row = f"{rank},{team},{combined},{prog},{prog_stoptime},{p_time},{prog_attempts},{combined-prog},{stoptime-prog_stoptime},{d_time},{driver_attempts},{grade_level}"
+            csv_row = [rank,team,combined,prog,prog_stoptime,p_time,prog_attempts,combined-prog,stoptime-prog_stoptime,d_time,driver_attempts,grade_level]
+            csv_rows_to_add.append(csv_row)
             row = {
                 eclib.db.rankings.team_num: team,
                 eclib.db.rankings.prog: prog,
@@ -184,6 +216,29 @@ async def calc_rankings(db):
         div_ranks[div] = rankingDict
     msg = {"api": eclib.apis.rankings, "operation": "return_data", "list": div_ranks}
     await ecsocket.send_by_access(msg, eclib.apis.rankings)
+    with open('files/skills.csv', 'w', newline='') as f:
+        skills_writer = csv.writer(f)
+        skills_writer.writerow(['Rank','Team','TotalScore','ProgHighScore','ProgHighScoreStopTime','ProgHighScoreTime','ProgAttempts','DriverHighScore','DriverHighScoreStopTime','DriverHighScoreTime','DriverAttempts','Age Group'])
+        for row in csv_rows_to_add:
+            skills_writer.writerow(row)
+
+    with open('files/event_code.txt', 'r') as f:
+        event_code = f.read()
+    read_headers = {"Authorization": f"Bearer {tokens.re_read_token}"}
+    response = requests.get(f'https://www.robotevents.com/api/v2/events?sku[]={event_code}', headers=read_headers).json()
+    id = response['data'][0]['id']
+
+    endpoint = f"https://test.robotevents.com/api/live/events/{id}/skills"
+    headers = {
+        "X-Auth-Token": tokens.re_write_token,
+        "Accept": "application/json",
+        "Authorization": f"Basic {tokens.re_test_login}"
+    }
+    files = {'file': open('files/skills.csv', 'rb')}
+
+    r = requests.post(endpoint, headers=headers, files=files)
+
+    print(r.status_code)
 
 
 async def send_rankings(db):

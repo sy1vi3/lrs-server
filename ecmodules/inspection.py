@@ -140,6 +140,7 @@ async def ctrl_handler(client, user, operation, payload, db):
             await db.update(eclib.db.inspection.table_, [(eclib.db.inspection.team_num, "==", row[eclib.db.inspection.team_num])], row)
             await push_to_ctrl(db)
             await push_to_team(ecusers.User.find_user(row[eclib.db.inspection.team_num]), db)
+            await ecmodules.stats.send_team_info(db, None)
 
     elif operation == "getInspect":
         await load_inspection_form(payload, client, db)

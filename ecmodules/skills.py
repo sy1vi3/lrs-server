@@ -166,6 +166,7 @@ async def save(payload, client, user, db):
                 await push_to_team(ecusers.User.find_user(row[eclib.db.skills.team_num]), db)
                 await push_to_scores(db)
         await ecmodules.rankings.ranks_handler(db, "calc_rankings")
+        await ecmodules.stats.send_team_info(db, None)
 
 
 async def get_scoresheet(payload, client, user, db, force_view=False):
@@ -280,6 +281,7 @@ async def ctrl_handler(client, user, operation, payload, db):
             await push_to_scores(db)
             await ecmodules.rankings.ranks_handler(db, "calc_rankings")
             await ecmodules.rankings.purge_rankings(db)
+            await ecmodules.stats.send_team_info(db, None)
     elif operation == "get_comp":
         await findTeamComp(db, payload, client)
 

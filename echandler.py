@@ -14,6 +14,7 @@ import ecmodules.queue
 import ecmodules.skills
 import ecmodules.tech_support
 import ecmodules.rankings
+import ecmodules.stats
 
 db = None
 
@@ -71,6 +72,8 @@ async def echandle(client, user, api, operation, payload):
             await ecmodules.tech_support.handler(client, user, operation, payload, db)
         elif api == eclib.apis.event_ctrl:
             await ecmodules.event_control.handler(client, user, operation, payload, db)
+        elif api == eclib.apis.stats:
+            await ecmodules.stats.send_team_info(db, client)
         elif api == eclib.apis.meeting_ctrl:
             if operation == "init":
                 await ecsocket.send_by_client({"api": eclib.apis.meeting_ctrl, "rooms": len(ecusers.User.rooms)}, client)
