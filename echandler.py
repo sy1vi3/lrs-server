@@ -17,6 +17,9 @@ import ecmodules.rankings
 import ecmodules.stats
 import ecmodules.oauth
 import ecmodules.volunteers
+import ecmodules.event_config
+import jwt
+import files.tokens as tokens
 
 db = None
 
@@ -84,10 +87,49 @@ async def echandle(client, user, api, operation, payload):
             await ecmodules.teams.handler(db, operation, payload)
         elif api == eclib.apis.queue and operation == "get":
             await ecmodules.queue.push_update(db, client, user)
+        elif api == eclib.apis.settings:
+            print(api)
+        elif api == eclib.apis.event_room:
+            if user.role == eclib.roles.referee:
+                jwt_data = {
+                    "context": {
+                        "user": {
+                            "avatar": "https://console.liveremoteskills.org/img/referee.png",
+                            "name": f"{user.name} - Ref",
+                            "email": "",
+                            "id": "abcd:a1b2c3-d4e5f6-0abc1-23de-abcdef01fedcba"
+                        }
+                    },
+                    "aud": "jitsi",
+                    "iss": "eventconsole",
+                    "sub": "https://connect.liveremoteskills.org/",
+                    "room": "*"
+                }
+                token = jwt.encode(jwt_data, tokens.jitsi_secret, algorithm='HS256')
+                msg = {"api": eclib.apis.event_room, "operation": "give_ref_login", "room": user.room, "pass": ecusers.User.room_codes[user.room], "jwt": token}
+                await ecsocket.send_by_client(msg, client)
         elif api == eclib.apis.meeting_ctrl:
             if operation == "init":
-                await ecsocket.send_by_client({"api": eclib.apis.meeting_ctrl, "operation": "set_code", "rooms": len(ecusers.User.rooms)}, client)
+                jwt_data = {
+                    "context": {
+                        "user": {
+                            "avatar": "https://console.liveremoteskills.org/img/ep.png",
+                            "name": f"{user.name} - Event Partner",
+                            "email": "",
+                            "id": "abcd:a1b2c3-d4e5f6-0abc1-23de-abcdef01fedcba"
+                        }
+                    },
+                    "aud": "jitsi",
+                    "iss": "eventconsole",
+                    "sub": "https://connect.liveremoteskills.org/",
+                    "room": "*"
+                }
+                token = jwt.encode(jwt_data, tokens.jitsi_secret, algorithm='HS256')
+                await ecsocket.send_by_client({"api": eclib.apis.meeting_ctrl, "operation": "set_code", "rooms": len(ecusers.User.rooms), "jwt": token}, client)
+        elif api == eclib.apis.event_config:
+            await ecmodules.event_config.handler(db, user, client, operation, payload)
         else:
+            print(api, operation)
             await ech.send_error(client)
     elif api == eclib.apis.main and operation == "get":
         tablist = user.get_tablist()
@@ -96,6 +138,7 @@ async def echandle(client, user, api, operation, payload):
             await echandle(client, user, api, "get", None)
         await ecmodules.queue.push_update(db, client, user)
     else:
+        print(api, operation)
         await ech.send_error(client)
 
 
@@ -115,8 +158,11 @@ async def handler(client, _path):
             except json.JSONDecodeError:
                 await ech.send_error(client)
                 return
+
             if (extracted := await ech.safe_extract(client, payload, {"api": str, "operation": str})) is not None:
                 if extracted["api"] == eclib.apis.login and extracted["operation"] == "login":
+                    with open("log/log.txt", "a") as f:
+                        f.write(f"\n {ech.timestamp_to_readable(ech.current_time())}: {payload}")
                     if (passcode := await ech.safe_extract(client, payload, {"accessCode": str})) is not None:
                         success = False
                         for user in ecusers.User.userlist:
@@ -137,7 +183,28 @@ async def handler(client, _path):
                                     for u in room_data:
                                         rooms.append(u.room)
 
+                                    msg = {"api": eclib.apis.event_ctrl, "operation": "room_code_update", "rooms": ecusers.User.room_codes}
+                                    await ecsocket.send_by_role(msg, eclib.roles.event_partner)
+
                                     await ecsocket.send_by_access({"api": eclib.apis.meeting_ctrl, "operation": "all_rooms", "rooms": rooms}, eclib.apis.meeting_ctrl)
+                                if user.role == eclib.roles.referee:
+                                    jwt_data = {
+                                        "context": {
+                                            "user": {
+                                                "avatar": "https://console.liveremoteskills.org/img/referee.png",
+                                                "name": f"{user.name} - Ref",
+                                                "email": "",
+                                                "id": "abcd:a1b2c3-d4e5f6-0abc1-23de-abcdef01fedcba"
+                                            }
+                                        },
+                                        "aud": "jitsi",
+                                        "iss": "eventconsole",
+                                        "sub": "https://connect.liveremoteskills.org/",
+                                        "room": "*"
+                                    }
+                                    token = jwt.encode(jwt_data, tokens.jitsi_secret, algorithm='HS256')
+                                    msg = {"api": eclib.apis.event_room, "operation": "give_ref_login", "room": user.room, "pass": ecusers.User.room_codes[user.room], "jwt": token}
+                                    await ecsocket.send_by_client(msg, client)
                                 if user.role == eclib.roles.livestream:
                                     if (roomnum := await ech.safe_extract(client, payload, {"room_num": str})) is not None:
                                         room_password = ecusers.User.room_codes[int(roomnum)]
@@ -152,6 +219,8 @@ async def handler(client, _path):
                 else:
                     if (user := find_user_from_client(client)) is not None:
                         await echandle(client, user, extracted["api"], extracted["operation"], payload)
+                        with open("log/log.txt", "a") as f:
+                            f.write(f"\n {ech.timestamp_to_readable(ech.current_time())} [{user.name}]: {payload}")
                     else:
                         await ech.send_error(client)
                         return

@@ -86,7 +86,7 @@ async def post_message(payload, client, user, db):
             eclib.db.chat.message: message
         })
         await push(db)
-        msg = {"api": "Sound", "operation": "new_msg", "author": user.name}
+        msg = {"api": "Sound", "operation": "new_msg", "author": user.name, "new_msg_content": message}
         await ecsocket.send_by_access(msg, eclib.apis.chat)
 
 async def handler(client, user, operation, payload, db):

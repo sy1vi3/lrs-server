@@ -36,6 +36,14 @@ volunteers = "Volunteers"
 
 team_control = "Team Control"
 
+settings = "Settings"
+
+event_room = "Event Room"
+
+team_lounge = "Pits"
+
+event_config = "Event Config"
+
 tabs_ = (
     inspection,
     inspection_ctrl,
@@ -45,5 +53,9 @@ tabs_ = (
     meeting_ctrl,
     event_ctrl,
     rankings,
-    stats
+    stats,
+    settings,
+    event_room,
+    team_lounge,
+    event_config
 )

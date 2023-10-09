@@ -36,13 +36,13 @@ async def add(db, data):
         while new_code in used_codes:
             new_code = ''.join(random.choice(string.ascii_uppercase + string.digits + string.ascii_lowercase) for _ in range(13))
         data['Passcode'] = new_code
-    
+
     row = {
         eclib.db.users.name: data['Name'],
         eclib.db.users.role: data['Role'],
         eclib.db.users.passcode: data['Passcode'],
         eclib.db.users.enabled: 1,
-        eclib.db.users.event: data['Event']
+        eclib.db.users.event: "ALL"
     }
 
     used_names = list()
@@ -85,7 +85,7 @@ async def edit(db, data):
             eclib.db.users.role: data['Role'],
             eclib.db.users.passcode: data['Passcode'],
             eclib.db.users.enabled: 1,
-            eclib.db.users.event: data['Event']
+            eclib.db.users.event: "ALL"
         }
         await db.update(eclib.db.users.table_, [(eclib.db.users.name, "==", data['OldName'])], row)
     else:
