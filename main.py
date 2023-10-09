@@ -32,4 +32,4 @@ if __name__ == "__main__":
     loop.run_until_complete(ecmodules.inspection.load_inspected_teams(db))  # Blocking task
     loop.run_until_complete(ecmodules.skills.load_attempts(db))  # Blocking task
     print("Starting server")
-    ecsocket.ws_serve(loop, echandler.handler, WS_PORT, CERT_CHAIN, PRIV_KEY)
+    ecsocket.ws_serve(loop, echandler.handler, WS_PORT, CERT_CHAIN, PRIV_KEY)  # Change to ws_serve_nossl to disable TLS
