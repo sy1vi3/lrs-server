@@ -8,6 +8,7 @@ import eclib.apis
 import eclib.db
 from discord_webhook import DiscordWebhook
 import files.tokens as tokens
+import jwt
 
 TEAM_CHAT_ENABLED = True
 INSPECTION_OPEN = True
@@ -20,6 +21,26 @@ SKILLS_ATTEMPTS = dict()
 def log(message):
     webhook = DiscordWebhook(url=tokens.webhook_url, content=f"`{message}`")
     response = webhook.execute()
+
+async def create_jwt(name="", avatar="", room="*", moderator=False, expiry = 600):
+    jwt_data = {
+        "context": {
+            "user": {
+                "avatar": f"{avatar}",
+                "name": f"{name}",
+                "email": "",
+                "id": "abcd:a1b2c3-d4e5f6-0abc1-23de-abcdef01fedcba"
+            }
+        },
+        "aud": "jitsi",
+        "iss": "eventconsole",
+        "sub": "https://connect.liveremoteskills.org/",
+        "room": f"{room}",
+        "exp": round(time.time())+expiry,
+        "moderator": moderator
+    }
+    token = jwt.encode(jwt_data, tokens.jitsi_secret, algorithm='HS256')
+    return token
 
 
 async def send_error(client, error_msg="An error occurred. Please try again."):

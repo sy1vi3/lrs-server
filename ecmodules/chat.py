@@ -88,6 +88,9 @@ async def post_message(payload, client, user, db):
         if len(message) == 0:
             await ech.send_error(client, "Invalid message")
             return
+        if user.chat_banned and user.role == eclib.roles.team:
+            await ech.send_error(client, f"User is banned from chat. <br> Reason: {user.chat_ban_reason}")
+            return
         await db.insert(eclib.db.chat.table_, {
             eclib.db.chat.timestamp: ech.current_time(),
             eclib.db.chat.author: user.name,

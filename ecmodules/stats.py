@@ -12,7 +12,7 @@ import ast
 
 
 
-async def send_team_info(db, client):
+async def send_team_info(db, client=None):
     teams_data = {}
     teams_result = await db.select(eclib.db.teams.table_, [])
     for row in teams_result:
@@ -34,7 +34,11 @@ async def send_team_info(db, client):
             inspection = "Unknown"
         d_attempts = ech.SKILLS_ATTEMPTS[teamnum][0]
         p_attempts = ech.SKILLS_ATTEMPTS[teamnum][1]
-        team_info = {"div": div, "program": program, "inspection": inspection, "driver": d_attempts, "prog": p_attempts}
+        team_user = ecusers.User.find_user(teamnum)
+        notBanned = team_user.enabled
+        chat_banned = team_user.chat_banned
+        sticker_banned = team_user.sticker_banned
+        team_info = {"div": div, "program": program, "inspection": inspection, "driver": d_attempts, "prog": p_attempts, "enabled": notBanned, "chatBanned": chat_banned, "sticker_banned": sticker_banned}
         teams_data[teamnum] = team_info
     msg = {"api": eclib.apis.stats, "operation": "post", "data": teams_data}
     if client is not None:
@@ -44,7 +48,6 @@ async def send_team_info(db, client):
 
 async def get_info_card(db, client, team):
     team_info = await db.select(eclib.db.teams.table_, [(eclib.db.teams.team_num, "==", team)])
-    print(team_info)
     team_name = team_info[0]['teamName']
     team_org = team_info[0]['organization']
     team_loc = team_info[0]['location']
@@ -56,13 +59,21 @@ async def get_info_card(db, client, team):
 
     all_stickers = list()
     if team_sticker is not None:
-        all_stickers.append(team_sticker)
+        to_add = {
+            'teamnum': team,
+            'url': team_sticker
+        }
+        all_stickers.append(to_add)
     if gifted_stickers is not None:
         gifted_stickers = ast.literal_eval(gifted_stickers)
         for team_number in gifted_stickers:
             their_team_data = await db.select(eclib.db.teams.table_, [(eclib.db.teams.team_num, "==", team_number)])
             their_sticker = their_team_data[0]['mysticker']
-            all_stickers.append(their_sticker)
+            to_add = {
+                'teamnum': team_number,
+                'url': their_sticker
+            }
+            all_stickers.append(to_add)
 
     team_data = {
         "num": team,

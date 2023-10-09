@@ -14,13 +14,13 @@ producer = "Producer"
 
 RW_ = {
     team: (ecapis.chat, ecapis.inspection, ecapis.skills, ecapis.settings),
-    event_partner: (ecapis.chat, ecapis.inspection_ctrl, ecapis.skills_ctrl, ecapis.meeting_ctrl, ecapis.event_ctrl, ecapis.tech_support, ecapis.volunteers, ecapis.team_control, ecapis.event_config, ecapis.production, ecapis.home, ecapis.jwt, ecapis.moderation),
+    event_partner: (ecapis.chat, ecapis.inspection_ctrl, ecapis.skills_ctrl, ecapis.meeting_ctrl, ecapis.event_ctrl, ecapis.tech_support, ecapis.volunteers, ecapis.team_control, ecapis.event_config, ecapis.production, ecapis.home, ecapis.jwt, ecapis.moderation, ecapis.jwt),
     referee: (ecapis.chat, ecapis.inspection_ctrl, ecapis.skills_ctrl, ecapis.jwt, ecapis.moderation),
-    staff: (ecapis.chat, ecapis.home, ecapis.jwt, ecapis.moderation),
+    staff: (ecapis.chat, ecapis.home, ecapis.jwt, ecapis.moderation, ecapis.jwt),
     observer: tuple(),
     livestream: (ecapis.jwt,),
     output: tuple(),
-    producer: (ecapis.chat, ecapis.production, ecapis.output, ecapis.moderation)
+    producer: (ecapis.chat, ecapis.production, ecapis.output, ecapis.moderation, ecapis.jwt)
 }
 
 RO_ = {

@@ -12,6 +12,7 @@ import files.tokens as tokens
 import requests
 import json
 import time
+import threading
 
 async def get_divs(db):
     divs = []
@@ -26,7 +27,7 @@ async def get_divs(db):
     await ecsocket.send_by_access(msg, eclib.apis.rankings)
     return divs
 
-async def post_result(event, csv_rows_to_add, div):
+def send_results(event, csv_rows_to_add, div):
     with open(f'files/{event}.csv', 'w', newline='') as f:
         skills_writer = csv.writer(f)
         skills_writer.writerow(['Rank','Team','TotalScore','ProgHighScore','ProgHighScoreStopTime','ProgHighScoreTime','ProgAttempts','DriverHighScore','DriverHighScoreStopTime','DriverHighScoreTime','DriverAttempts','Age Group'])
@@ -54,7 +55,9 @@ async def post_result(event, csv_rows_to_add, div):
 
     r = requests.post(endpoint, headers=headers, files=files)
 
-    # ech.log(f"Updated Scores, Response code {r.status_code}")
+async def post_result(event, csv_rows_to_add, div):
+    post_thread = threading.Thread(target=send_results, args=(event, csv_rows_to_add, div), daemon=True)
+    post_thread.start()
 
 async def calc_rankings(db, pushScores=False):
     start_time = time.time()
@@ -247,16 +250,16 @@ async def calc_rankings(db, pushScores=False):
             }
             await db.upsert(eclib.db.rankings.table_, row, eclib.db.rankings.team_num)
 
-            rankingDict[rank] = {"rank": rank, "team": team, "combined": combined, "prog": prog, "prog_2":prog_2, "driver_2":driver_2, "stoptime": stoptime, "prog_stoptime":prog_stoptime, "prog_3":prog_3, "driver_3":driver_3}
+            rankingDict[rank] = {"rank": rank, "team": team, "combined": combined, "prog": prog, "prog_2":prog_2, "driver_2":driver_2, "stoptime": stoptime, "prog_stoptime":prog_stoptime, "prog_3":prog_3, "driver_3":driver_3, "comp":program}
         div_ranks[div] = rankingDict
         if ech.POST_TO_RE:
             await post_result(div, csv_rows_to_add, div)
     msg = {"api": eclib.apis.rankings, "operation": "return_data", "list": div_ranks}
     await ecsocket.send_by_access(msg, eclib.apis.rankings)
-    print(time.time()-start_time)
 
 
 async def send_rankings(db):
+    await purge_rankings(db)
     divs = await get_divs(db)
     div_ranks = {}
     for div in divs:

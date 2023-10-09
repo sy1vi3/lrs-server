@@ -22,9 +22,12 @@ import ecmodules.output
 import ecmodules.home
 import ecmodules.moderation
 import ecmodules.settings
+import ecmodules.jwt
 import jwt
 import files.tokens as tokens
 import time
+import threading
+from datetime import date
 
 db = None
 
@@ -109,7 +112,8 @@ async def echandle(client, user, api, operation, payload):
                     "iss": "eventconsole",
                     "sub": "https://connect.liveremoteskills.org/",
                     "room": f"room{user.room}",
-                    "exp": round(time.time())+36000
+                    "exp": round(time.time())+36000,
+                    "moderator": True
                 }
                 token = jwt.encode(jwt_data, tokens.jitsi_secret, algorithm='HS256')
                 msg = {"api": eclib.apis.event_room, "operation": "give_ref_login", "room": user.room, "pass": ecusers.User.room_codes[user.room], "jwt": token}
@@ -128,7 +132,9 @@ async def echandle(client, user, api, operation, payload):
                     "aud": "jitsi",
                     "iss": "eventconsole",
                     "sub": "https://connect.liveremoteskills.org/",
-                    "room": "*"
+                    "room": "*",
+                    "exp": round(time.time())+36000,
+                    "moderator": True
                 }
                 token = jwt.encode(jwt_data, tokens.jitsi_secret, algorithm='HS256')
                 await ecsocket.send_by_client({"api": eclib.apis.meeting_ctrl, "operation": "set_code", "rooms": len(ecusers.User.rooms), "jwt": token}, client)
@@ -159,15 +165,18 @@ async def echandle(client, user, api, operation, payload):
                     "iss": "eventconsole",
                     "sub": "https://connect.liveremoteskills.org/",
                     "room": room,
-                    "exp": round(time.time())+36000
+                    "exp": round(time.time())+36000,
+                    "moderator": False
                 }
                 token = jwt.encode(jwt_data, tokens.jitsi_secret, algorithm='HS256')
                 msg = {"api": eclib.apis.jwt, "operation": "return_jwt", "jwt": token}
                 await ecsocket.send_by_client(msg, client)
+            else:
+                await ecmodules.jwt.handler(client, user, operation, payload)
         elif api == eclib.apis.moderation:
             await ecmodules.moderation.handler(db, client, user, operation, payload)
         else:
-            await ech.send_error(client)
+            await ech.send_error(client, "mayonase on an ecolater im going up so cya later")
     elif api == eclib.apis.main and operation == "get":
         tablist = user.get_tablist()
         await ecsocket.send_by_client({"api": eclib.apis.main, "name": user.name, "role": user.role, "tablist": tablist}, client)
@@ -176,7 +185,20 @@ async def echandle(client, user, api, operation, payload):
         await ecmodules.queue.push_update(db, client, user)
     else:
         print(api, operation, payload)
-        await ech.send_error(client)
+        await ech.send_error(client, "RECF didn't like that... Maybe try <code>sudo [command]</code> instead?")
+
+async def log_to_file(client, message):
+    if (user := find_user_from_client(client)) is not None:
+        name = user.name
+    else:
+        name = "NOT LOGGED IN"
+    to_store = f"\n{date.today()}  |  {ech.timestamp_to_readable(ech.current_time())}  |  {client.remote_address[0]}  |  {name}"
+    length = len(to_store)
+    space_needed = 65-length
+    to_store += " " * space_needed
+    to_store += f"|  {message}"
+    with open("log/log.txt", "a") as f:
+        f.write(to_store)
 
 
 async def handler(client, _path):
@@ -190,16 +212,15 @@ async def handler(client, _path):
     global db
     try:
         async for message in client:
+
             try:
                 payload = json.loads(message)
             except json.JSONDecodeError:
                 await ech.send_error(client)
                 return
-
+            await log_to_file(client, message)
             if (extracted := await ech.safe_extract(client, payload, {"api": str, "operation": str})) is not None:
                 if extracted["api"] == eclib.apis.login and extracted["operation"] == "login":
-                    with open("log/log.txt", "a") as f:
-                        f.write(f"\n {ech.timestamp_to_readable(ech.current_time())}: {payload}")
                     if (passcode := await ech.safe_extract(client, payload, {"accessCode": str})) is not None:
                         success = False
                         for user in ecusers.User.userlist:
@@ -241,7 +262,8 @@ async def handler(client, _path):
                                         "iss": "eventconsole",
                                         "sub": "https://connect.liveremoteskills.org/",
                                         "room": f"room{user.room}",
-                                        "exp": round(time.time())+36000
+                                        "exp": round(time.time())+36000,
+                                        "moderator": True
                                     }
                                     token = jwt.encode(jwt_data, tokens.jitsi_secret, algorithm='HS256')
                                     msg = {"api": eclib.apis.event_room, "operation": "give_ref_login", "room": user.room, "pass": ecusers.User.room_codes[user.room], "jwt": token}
@@ -285,11 +307,11 @@ async def handler(client, _path):
                 else:
                     if (user := find_user_from_client(client)) is not None:
                         await echandle(client, user, extracted["api"], extracted["operation"], payload)
-                        with open("log/log.txt", "a") as f:
-                            f.write(f"\n {ech.timestamp_to_readable(ech.current_time())} [{user.name}]: {payload}")
                     else:
-                        await ech.send_error(client)
+                        await ech.send_error(client, "Something real wack is up with either the server or you")
                         return
+            else:
+                await ech.send_error(client, "Our servers are humbled by your incredible response")
     except websockets.ConnectionClosed:
         pass
     finally:

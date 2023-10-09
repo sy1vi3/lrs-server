@@ -54,6 +54,11 @@ class User:
         self.enable()
         self.clients = list()
         self.userlist.add(self)
+        self.chat_banned = False
+        self.chat_ban_reason = None
+        self.sticker_banned = False
+        self.sticker_ban_reason = None
+        self.ban_reason = None
         if event not in User.events:
             User.events.append(event)
 
@@ -159,7 +164,6 @@ class User:
             else:
                 u = User(user["name"], user["passcode"], user["role"], user["event"])
                 if u.role == eclib.roles.referee:
-                    print(u.name)
                     cls.rooms.append(u)
                     u.room = len(cls.rooms)
                     password = (''.join(random.choice(string.digits) for _ in range(4)))
@@ -169,8 +173,6 @@ class User:
                     for u in cls.rooms:
                         rooms.append(u.room)
                     await ecsocket.send_by_access({"api": eclib.apis.meeting_ctrl, "operation": "all_rooms", "rooms": rooms}, eclib.apis.meeting_ctrl)
-        with open("log/log.txt", "a") as f:
-            f.write(f"\n Room Codes: {User.room_codes}")
         for user in disabled_users:
             name = user["name"]
             if name in existing_users:

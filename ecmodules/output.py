@@ -31,14 +31,14 @@ async def reload_active(override=False, roomSet=0):
                 ecusers.User.live_room = 0
                 msg = {"api": eclib.apis.output, "operation": "setActiveRoom", "room": 0}
                 await ecsocket.send_by_access(msg, eclib.apis.output)
-                await ecsocket.send_by_role(msg, eclib.roles.producer)
+                await ecsocket.send_by_access(msg, eclib.apis.production)
             else:
                 sorted_rooms = sorted(live_rooms_with_time,key=lambda l:l[1], reverse=True)
                 new_active_room = sorted_rooms[0][0]
                 ecusers.User.live_room = new_active_room
                 msg = {"api": eclib.apis.output, "operation": "setActiveRoom", "room": new_active_room}
                 await ecsocket.send_by_access(msg, eclib.apis.output)
-                await ecsocket.send_by_role(msg, eclib.roles.producer)
+                await ecsocket.send_by_access(msg, eclib.apis.production)
 
     else:
         old_active = ecusers.User.live_room
@@ -46,11 +46,11 @@ async def reload_active(override=False, roomSet=0):
             ecusers.User.live_room = roomSet
             msg = {"api": eclib.apis.output, "operation": "setActiveRoom", "room": roomSet}
             await ecsocket.send_by_access(msg, eclib.apis.output)
-            await ecsocket.send_by_role(msg, eclib.roles.producer)
+            await ecsocket.send_by_access(msg, eclib.apis.production)
     room_data = ecusers.User.event_room_data
     msg = {"api": eclib.apis.output, "operation": "setAliveRooms", "data": room_data}
     await ecsocket.send_by_access(msg, eclib.apis.output)
-    await ecsocket.send_by_role(msg, eclib.roles.producer)
+    await ecsocket.send_by_access(msg, eclib.apis.production)
     await get_current()
 
 

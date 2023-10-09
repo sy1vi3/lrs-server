@@ -120,8 +120,6 @@ async def load(db):
         if sticker_url is None:
             row = {eclib.db.teams.sticker_url: f"https://ui-avatars.com/api/?name={'+'.join(teamnumber)}&background={str(ColorHash(teamnumber).hex)[1:]}&color=fff"}
             await db.update(eclib.db.teams.table_, [(eclib.db.teams.team_num, "==", teamnumber)], row)
-        else:
-            print(teamnumber, "Already has a sticker")
         await db.upsert(eclib.db.inspection.table_, {
             eclib.db.inspection.team_num: teamnumber,
             eclib.db.inspection.form_data: ""

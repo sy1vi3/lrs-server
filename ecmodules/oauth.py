@@ -45,7 +45,6 @@ async def handler(payload, operation, client, db):
                 id_response = requests.get(f'https://www.robotevents.com/api/me', headers=headers).json()
                 response = requests.get(f'https://www.robotevents.com/api/v2/teams?myTeams=true', headers=headers).json()
                 user_id = id_response['id']
-                print(user_id)
                 if (meta := response['meta']) is not None:
                     num_pages = meta['last_page']
                     account_teams = []

@@ -11,6 +11,52 @@ import ecusers
 import string
 import random
 import ecmodules.output
+import requests
+import files.tokens as tokens
+import threading
+import time
+
+def stop_room_recording(stopId, room, fileName):
+    endpoint = "https://remote.robotevents.com/api/lrs/stop"
+    headers = {
+        'Accept': 'application/json',
+        "X-Auth-Token": tokens.rre_token,
+        'Content-Type': 'application/json'
+    }
+    info = {
+      'stopId': stopId
+    }
+    r = requests.post(endpoint, headers=headers, json=info)
+    if r.status_code == 204:
+        ech.log(f"Stopped recording room {room}. Filename is {fileName}")
+    else:
+        ech.log(f"Error in stopping: {r}")
+
+def start_room_recording(url, event, team, intent, room):
+    intent = intent.replace(" ", "_")
+    endpoint = "https://remote.robotevents.com/api/lrs/start"
+    headers = {
+        'Accept': 'application/json',
+        "X-Auth-Token": tokens.rre_token,
+        'Content-Type': 'application/json'
+    }
+    info = {
+      "url": url,
+      "eventCode": event,
+      "teamNumber": team,
+      "matchType": intent,
+      "instance": round(time.time())
+    }
+    r = requests.post(endpoint, headers=headers, json=info)
+    stopId = r.json()['stopId']
+    fileName = r.json()['fileName']
+    ecusers.User.event_room_data[room]['stopId'] = stopId
+    ecusers.User.event_room_data[room]['fileName'] = fileName
+    if r.status_code == 202 or r.status_code == 201:
+        ech.log(f"Starting recording room {room}. StopId = {stopId}")
+    else:
+        ech.log(f"Error in starting {room}: {r.json()} | {r.status_code}")
+
 
 async def rm_from_active(team):
     for room in ecusers.User.event_room_data:
@@ -29,6 +75,12 @@ async def rm_from_active(team):
             msg = {"api": eclib.apis.output, "operation": "setAliveRooms", "data": room_data}
             await ecsocket.send_by_role(msg, eclib.roles.output)
             await ecmodules.output.reload_active()
+
+            stopId = ecusers.User.event_room_data[room]['stopId']
+            fileName = ecusers.User.event_room_data[room]['fileName']
+            kill_thread = threading.Thread(target=stop_room_recording, args=(stopId, room, fileName), daemon=True)
+            kill_thread.start()
+
 
 
 async def push_update(db, client=None, user=None):
@@ -152,17 +204,20 @@ async def team_unqueue(team, db):
     await push_update(db)
     await rm_from_active(team.name)
 
+
+
+
+
 async def invite_team(db, user, client, team_num, intent):
-    password = (''.join(random.choice(string.digits) for _ in range(4)))
-    await ecsocket.send_by_access({"api": eclib.apis.meeting_ctrl, "operation": "set_code", "room": user.room, "password": password}, eclib.apis.meeting_ctrl)
+    jwt = await ech.create_jwt(team_num, "", f"room{user.room}", False, 180)
+    # await ecsocket.send_by_access({"api": eclib.apis.meeting_ctrl, "operation": "set_code", "room": user.room, "password": password}, eclib.apis.meeting_ctrl)
     team_msg = {"api": eclib.apis.main, "modal":
                 "<p>You are invited to join the video call:</p>" +
-                "<p><a href=\"https://connect.liveremoteskills.org/room" + str(user.room) + "\" target=\"_blank\">" +
-                "https://connect.liveremoteskills.org/room" + str(user.room) + "</a></p>" +
-                "<p>Password: <big><strong><tt>" + password + "</tt></strong></big></p>",
-                "room": user.room, "password": password
+                "<p><a href=\"https://connect.liveremoteskills.org/room" + str(user.room) + "?jwt=" + jwt + "\" target=\"_blank\" + style='word-break: break-word;'>" +
+                "https://connect.liveremoteskills.org/room" + str(user.room) + "?jwt=" + jwt + "</a></p>",
+                "room": user.room, "jwt": jwt
                 }
-    ecusers.User.room_codes[user.room] = password
+    ecusers.User.room_codes[user.room] = "No Password"
     await ecsocket.send_by_user(team_msg, ecusers.User.find_user(team_num))
     await push_update(db)
     team_data_result = await db.select(eclib.db.teams.table_, [(eclib.db.teams.team_num, "==", team_num)])
@@ -174,37 +229,45 @@ async def invite_team(db, user, client, team_num, intent):
         "location": location,
         "name": team_name
     }
+    passcode = "No Passcode"
+    start_record = False
     if user.room in ecusers.User.event_room_data:
-        if ecusers.User.event_room_data[user.room]['active'] == False:
-            ecusers.User.event_room_data[user.room] = {"passcode": password, "info": info, "active": True, "time": ech.current_time(), "intent": intent}
+        if ecusers.User.event_room_data[user.room]['active'] == False:  # Start new room
+            start_record = True
+            ecusers.User.event_room_data[user.room] = {"passcode": passcode, "info": info, "active": True, "time": ech.current_time(), "intent": intent}
             msg = {"api": eclib.apis.livestream, "operation": "update", "room": user.room, "data": info}
             await ecsocket.send_by_role(msg, eclib.roles.livestream)
-            msg = {"api": eclib.apis.event_ctrl, "operation": "room_code_update", "rooms": ecusers.User.room_codes}
-            await ecsocket.send_by_role(msg, eclib.roles.event_partner)
-            msg = {"api": eclib.apis.event_room, "operation": "ref_room_code_update", "password": password}
-            await ecsocket.send_by_user(msg, user)
             room_data = ecusers.User.event_room_data
             msg = {"api": eclib.apis.output, "operation": "setAliveRooms", "data": room_data}
             await ecsocket.send_by_role(msg, eclib.roles.output)
             await ecmodules.output.reload_active()
-        else:
-            ecusers.User.event_room_data[user.room] = {"passcode": password, "info": info, "active": True, "time": ecusers.User.event_room_data[user.room]['time'], "intent": intent}
-            msg = {"api": eclib.apis.event_ctrl, "operation": "room_code_update", "rooms": ecusers.User.room_codes}
-            await ecsocket.send_by_role(msg, eclib.roles.event_partner)
-            msg = {"api": eclib.apis.event_room, "operation": "ref_room_code_update", "password": password}
-            await ecsocket.send_by_user(msg, user)
-    else:
-        ecusers.User.event_room_data[user.room] = {"passcode": password, "info": info, "active": True, "time": ech.current_time(), "intent": intent}
+        else: # Re-invite
+            ecusers.User.event_room_data[user.room] = {"passcode": passcode, "info": info, "active": True, "time": ecusers.User.event_room_data[user.room]['time'], "intent": intent}
+    else: # Start new room
+        start_record = True
+        ecusers.User.event_room_data[user.room] = {"passcode": passcode, "info": info, "active": True, "time": ech.current_time(), "intent": intent}
         msg = {"api": eclib.apis.livestream, "operation": "update", "room": user.room, "data": info}
         await ecsocket.send_by_role(msg, eclib.roles.livestream)
-        msg = {"api": eclib.apis.event_ctrl, "operation": "room_code_update", "rooms": ecusers.User.room_codes}
-        await ecsocket.send_by_role(msg, eclib.roles.event_partner)
-        msg = {"api": eclib.apis.event_room, "operation": "ref_room_code_update", "password": password}
-        await ecsocket.send_by_user(msg, user)
         room_data = ecusers.User.event_room_data
         msg = {"api": eclib.apis.output, "operation": "setAliveRooms", "data": room_data}
         await ecsocket.send_by_role(msg, eclib.roles.output)
         await ecmodules.output.reload_active()
+    if start_record:
+        streaming_passcode = ""
+        for r in ecusers.User.userlist:
+            if r.role == eclib.roles.livestream:
+                streaming_passcode = r.passcode
+        if streaming_passcode == "":
+            await ech.send_error(client, "Tell the EP that the system is having trouble locating a livestream user")
+            return
+        url = f"https://console.liveremoteskills.org/stream?room={user.room}&token={streaming_passcode}"
+        team_info = await db.select(eclib.db.teams.table_, [(eclib.db.teams.team_num, "==", team_num)])
+        if len(team_info) > 0:
+            event = team_info[0]['div']
+        else:
+            event = "RE-XX-00-0000"
+        record_thread = threading.Thread(target=start_room_recording, args=(url, event, team_num, intent, user.room), daemon=True)
+        record_thread.start()
 
 async def ctrl_invite(payload, client, user, db):
     """
