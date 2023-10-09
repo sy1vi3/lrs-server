@@ -19,19 +19,26 @@ async def load(db, file):
     with open(file, newline='') as csvfile:
         reader = csv.DictReader(csvfile, quoting=csv.QUOTE_ALL)
         for row in reader:
-            programs = row['other_programs']
+            programs = row['Sku']
             if "VRC" in programs or "VEXU" in programs:
                 comp = "VRC"
             elif "VIQC" in programs:
                 comp = "VIQC"
             else:
                 comp = "VRC"
+            try:
+                div = row["Div"]
+            except:
+                if comp == "VRC":
+                    div = "VRC Division 1"
+                elif comp == "VIQC":
+                    div = "VIQC Division 1"
             await db.upsert(eclib.db.teams.table_, {
                 eclib.db.teams.team_num: row["Team"],
                 eclib.db.teams.team_name: row["Name"],
                 eclib.db.teams.organization: row["Organization"],
                 eclib.db.teams.location: row["City"] + ", " + row["Region"] + ", " + row["Country"],
-                eclib.db.teams.div: row["Div"],
+                eclib.db.teams.div: div,
                 eclib.db.teams.comp: comp
             }, eclib.db.teams.team_num)
             await db.upsert(eclib.db.inspection.table_, {

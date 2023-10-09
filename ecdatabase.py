@@ -10,6 +10,7 @@ import eclib.db.queue
 import eclib.db.inspection
 import eclib.db.skills
 import eclib.db.chat
+import eclib.db.rankings
 
 
 class Database:
@@ -43,6 +44,7 @@ class Database:
         self.cursor.execute(eclib.db.inspection.create_)
         self.cursor.execute(eclib.db.skills.create_)
         self.cursor.execute(eclib.db.chat.create_)
+        self.cursor.execute(eclib.db.rankings.create_)
 
     async def insert(self, table, values):
         """
@@ -146,6 +148,30 @@ class Database:
             for cond in conditions[1:]:
                 statement += " AND " + cond[0] + " " + cond[1] + " ?"
                 inputs.append(cond[2])
+        self.cursor.execute(statement, inputs)
+        rows = [dict(row) for row in self.cursor.fetchall()]
+        return rows
+
+    async def select_order(self, table, conditions, order_by, direction):
+        """
+        Fetch row(s) of a database table matching the given condition(s).
+
+        :param table: database table
+        :type table: str
+        :param conditions: SQLite condition expressions that must all be matched. Tuples consist of column name, operator, expression.
+        :type conditions: list[tuple[str, str, T]]
+        :return: matching row(s)
+        :rtype: list[dict[str, T]]
+        """
+        inputs = list()
+        statement = "SELECT rowid, * FROM " + table
+        if conditions:
+            statement += " WHERE " + conditions[0][0] + " " + conditions[0][1] + " ?"
+            inputs.append(conditions[0][2])
+            for cond in conditions[1:]:
+                statement += " AND " + cond[0] + " " + cond[1] + " ?"
+                inputs.append(cond[2])
+        statement += "ORDER BY " + order_by + " " + direction
         self.cursor.execute(statement, inputs)
         rows = [dict(row) for row in self.cursor.fetchall()]
         return rows

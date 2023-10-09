@@ -1,12 +1,15 @@
 """
 Handle Skills-related tasks
 """
+
+import eclib.db.rankings
 import eclib.db.skills
 import eclib.db.teams
 import ecsocket
 import eclib.apis
 import ecusers
 import ecmodules.queue
+import ecmodules.rankings
 import echelpers as ech
 
 
@@ -162,6 +165,7 @@ async def save(payload, client, user, db):
                 await push_to_ctrl(db)
                 await push_to_team(ecusers.User.find_user(row[eclib.db.skills.team_num]), db)
                 await push_to_scores(db)
+        await ecmodules.rankings.ranks_handler(db, "calc_rankings")
 
 
 async def get_scoresheet(payload, client, user, db, force_view=False):
@@ -274,6 +278,8 @@ async def ctrl_handler(client, user, operation, payload, db):
             await push_to_ctrl(db)
             await push_to_team(ecusers.User.find_user(team_num), db)
             await push_to_scores(db)
+            await ecmodules.rankings.ranks_handler(db, "calc_rankings")
+            await ecmodules.rankings.purge_rankings(db)
     elif operation == "get_comp":
         await findTeamComp(db, payload, client)
 
