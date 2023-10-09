@@ -19,6 +19,7 @@ class User:
     userlist = set()
     rooms = list()
     room_codes = dict()
+    events = list()
 
     # Allow instances of User to be stored in sets
     def __hash__(self):
@@ -30,7 +31,7 @@ class User:
     def __ne__(self, x):
         return x is not self
 
-    def __init__(self, name, passcode, role):
+    def __init__(self, name, passcode, role, event):
         """
         Create user object
 
@@ -46,9 +47,12 @@ class User:
         self.name = name
         self.passcode = passcode
         self.role = role
+        self.event = event
         self.enable()
         self.clients = list()
         self.userlist.add(self)
+        if event not in User.events:
+            User.events.append(event)
 
     def enable(self, enabled=True):
         """
@@ -94,7 +98,8 @@ class User:
                 eclib.db.users.name: "Event Partner",
                 eclib.db.users.passcode: new_code,
                 eclib.db.users.role: eclib.roles.event_partner,
-                eclib.db.users.enabled: 1
+                eclib.db.users.enabled: 1,
+                eclib.db.users.event: "ALL"
             }
             print(f"NEW USER: EVENT PARTNER: {new_code}")
             await db.insert(eclib.db.users.table_, row)
@@ -106,7 +111,8 @@ class User:
                 eclib.db.users.name: "Livestream",
                 eclib.db.users.passcode: new_code,
                 eclib.db.users.role: eclib.roles.livestream,
-                eclib.db.users.enabled: 1
+                eclib.db.users.enabled: 1,
+                eclib.db.users.event: "ALL"
             }
             print(f"NEW USER: LIVESTREAM: {new_code}")
             await db.insert(eclib.db.users.table_, row)
@@ -121,9 +127,10 @@ class User:
                 u = cls.find_user(name)
                 u.role = user["role"]
                 u.passcode = user["passcode"]
+                u.event = user["event"]
                 u.enable()
             else:
-                u = User(user["name"], user["passcode"], user["role"])
+                u = User(user["name"], user["passcode"], user["role"], user["event"])
                 if u.role == eclib.roles.referee:
                     cls.rooms.append(u)
                     u.room = len(cls.rooms)
@@ -142,9 +149,10 @@ class User:
                 u = cls.find_user(name)
                 u.role = user["role"]
                 u.passcode = user["passcode"]
+                u.event = user["event"]
                 u.enable(False)
             else:
-                u = User(user["name"], user["passcode"], user["role"])
+                u = User(user["name"], user["passcode"], user["role"], user["event"])
                 u.enable(False)
 
     def get_apis(self):

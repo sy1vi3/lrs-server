@@ -26,6 +26,7 @@ async def get_divs(db):
     return divs
 async def calc_rankings(db):
     divs = await get_divs(db)
+    print(divs)
     div_ranks = {}
     csv_rows_to_add = []
     for div in divs:
@@ -225,8 +226,8 @@ async def calc_rankings(db):
 
     with open('files/config.json', 'r') as f:
         config = json.load(f)
-        event_code = config['event-code']
-        skills_auth_code = config['auth-code']
+        event_code = config['events'][0]['event-code']
+        skills_auth_code = config['events'][0]['auth-code']
     read_headers = {"Authorization": f"Bearer {tokens.re_read_token}"}
     response = requests.get(f'https://www.robotevents.com/api/v2/events?sku[]={event_code}', headers=read_headers).json()
     id = response['data'][0]['id']

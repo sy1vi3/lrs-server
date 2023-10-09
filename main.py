@@ -25,6 +25,5 @@ if __name__ == "__main__":
     echandler.db = db
     loop = asyncio.get_event_loop()
     loop.run_until_complete(ecmodules.teams.load(db))  # Blocking task
-    loop.run_until_complete(ecmodules.inspection.load_inspected_teams(db))  # Blocking task
     print("Starting server")
     ecsocket.ws_serve(loop, echandler.handler, WS_PORT, CERT_CHAIN, PRIV_KEY)  # Change to ws_serve_nossl to disable TLS

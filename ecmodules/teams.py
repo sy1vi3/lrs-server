@@ -37,22 +37,28 @@ async def load(db):
     """
     teams_loaded = []
     fail_read = False
+    event_codes = []
     with open('files/config.json', 'r') as f:
         config = json.load(f)
-        event_code = config['event-code']
+        events = config['events']
+        for event in events:
+            event_codes.append(event['event-code'])
     headers = {"Authorization": f"Bearer {tokens.re_read_token}"}
     try:
         team_data_object = []
-        response = requests.get(f'https://www.robotevents.com/api/v2/events?sku[]={event_code}', headers=headers).json()
-        id = response['data'][0]['id']
-        response = requests.get(f'https://www.robotevents.com/api/v2/events/{id}/teams', headers=headers).json()
-        meta = response['meta']
-        num_pages = meta['last_page']
-        for page in range(num_pages):
-            url = f'https://www.robotevents.com/api/v2/events/{id}/teams?page={page+1}'
-            response = requests.get(url, headers=headers).json()
-            for team in response['data']:
-                team_data_object.append(team)
+        for event_code in event_codes:
+            response = requests.get(f'https://www.robotevents.com/api/v2/events?sku[]={event_code}', headers=headers).json()
+            id = response['data'][0]['id']
+            response = requests.get(f'https://www.robotevents.com/api/v2/events/{id}/teams', headers=headers).json()
+            meta = response['meta']
+            num_pages = meta['last_page']
+            for page in range(num_pages):
+                url = f'https://www.robotevents.com/api/v2/events/{id}/teams?page={page+1}'
+                response = requests.get(url, headers=headers).json()
+                for team in response['data']:
+                    team['event_code'] = event_code
+                    team_data_object.append(team)
+
     except Exception as e:
         print(e)
         fail_read = True
@@ -66,7 +72,10 @@ async def load(db):
             comp = "VIQC"
         else:
             comp = "VRC"
-
+        try:
+            event = team['event_code']
+        except:
+            event = "ERROR_EVENT_UNKNOWN"
         try:
             div = team['division']
         except:
@@ -89,26 +98,23 @@ async def load(db):
         try:
             teamloc = team["location"]['city'] + ", " + team["location"]['region'] + ", " + team["location"]['country']
         except:
-            teamloc = "UNKNOWN"
-            print(f'ERROR TEAM GEN: {teamnumber}')
+            teamloc = "VEX Robotics"
         try:
             grade = team['grade']
         except:
             grade = "High School"
-
 
         await db.upsert(eclib.db.teams.table_, {
             eclib.db.teams.team_num: teamnumber,
             eclib.db.teams.team_name: teamname,
             eclib.db.teams.organization: teamorg,
             eclib.db.teams.location: teamloc,
-            eclib.db.teams.div: div,
+            eclib.db.teams.div: event,
             eclib.db.teams.comp: comp,
             eclib.db.teams.grade: grade
         }, eclib.db.teams.team_num)
         await db.upsert(eclib.db.inspection.table_, {
             eclib.db.inspection.team_num: teamnumber,
-            eclib.db.inspection.result: eclib.db.inspection.result_not_started,
             eclib.db.inspection.form_data: ""
         }, eclib.db.inspection.team_num)
         teams_loaded.append(teamnumber)
@@ -140,6 +146,8 @@ async def load(db):
 
 
         for team in teams_need_code:
+            event_result = await db.select(eclib.db.teams.table_, [(eclib.db.teams.team_num, "==", team)])
+            event = event_result[0][eclib.db.teams.div]
             new_code = ''.join(random.choice(string.ascii_uppercase + string.digits + string.ascii_lowercase) for _ in range(13))
             while new_code in usedCodes:
                 new_code = ''.join(random.choice(string.ascii_uppercase + string.digits + string.ascii_lowercase) for _ in range(13))
@@ -147,8 +155,10 @@ async def load(db):
                 eclib.db.users.name: team,
                 eclib.db.users.passcode: new_code,
                 eclib.db.users.role: eclib.roles.team,
-                eclib.db.users.enabled: 1
+                eclib.db.users.enabled: 1,
+                eclib.db.users.event: event
             }
+            print(team, event)
             await db.upsert(eclib.db.users.table_, row, eclib.db.users.name)
 
 
@@ -159,11 +169,19 @@ async def load(db):
         await db.delete(eclib.db.teams.table_, [(eclib.db.teams.team_num, "==", team)])
         await db.delete(eclib.db.skills.table_, [(eclib.db.skills.team_num, "==", team)])
 
+
+    new_teams = await db.select(eclib.db.teams.table_, [])
+    msg = {"api": eclib.apis.skills_ctrl, "operation": "set_teams", "teams": new_teams}
+    await ecsocket.send_by_access(msg, eclib.apis.skills_ctrl)
+
     await ecmodules.skills.load_attempts(db)
     await ecmodules.inspection.load_inspected_teams(db)
     await ecmodules.inspection.push_to_ctrl(db)
     await ecusers.User.load_users(db)
     await get_teams(db)
+    new_teams = await db.select(eclib.db.teams.table_, [])
+    msg = {"api": eclib.apis.skills_ctrl, "operation": "set_teams", "teams": new_teams}
+    await ecsocket.send_by_access(msg, eclib.apis.main)
     print("LOADED TEAMS")
 
 async def handler(db, operation, payload):
@@ -198,7 +216,8 @@ async def handler(db, operation, payload):
             eclib.db.users.name: teamnum,
             eclib.db.users.passcode: passcode,
             eclib.db.users.role: eclib.roles.team,
-            eclib.db.users.enabled: enabled
+            eclib.db.users.enabled: enabled,
+            eclib.db.users.event: user_edit_data['Event']
         }
 
         await db.update(eclib.db.users.table_, [(eclib.db.users.name, "==", teamnum), (eclib.db.users.role, "==", eclib.roles.team)], row)

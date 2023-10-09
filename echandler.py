@@ -82,6 +82,8 @@ async def echandle(client, user, api, operation, payload):
             print(api)
         elif api == eclib.apis.team_control:
             await ecmodules.teams.handler(db, operation, payload)
+        elif api == eclib.apis.queue and operation == "get":
+            await ecmodules.queue.push_update(db, client, user)
         elif api == eclib.apis.meeting_ctrl:
             if operation == "init":
                 await ecsocket.send_by_client({"api": eclib.apis.meeting_ctrl, "operation": "set_code", "rooms": len(ecusers.User.rooms)}, client)
@@ -124,6 +126,9 @@ async def handler(client, _path):
                                 ecsocket.unregister(client)
                                 ecsocket.register(client, user)
                                 await echandle(client, user, eclib.apis.main, "get", None)
+                                new_teams = await db.select(eclib.db.teams.table_, [])
+                                msg = {"api": "Event Data", "operation": "event_info", "event": user.event, "teams": new_teams}
+                                await ecsocket.send_by_client(msg, client)
                                 if user.role == eclib.roles.event_partner:
                                     await ecmodules.volunteers.get_volunteers(db)
                                     await ecmodules.teams.get_teams(db)
@@ -138,6 +143,7 @@ async def handler(client, _path):
                                         room_password = ecusers.User.room_codes[int(roomnum)]
                                         msg = {"api": eclib.apis.livestream, "operation": "code", "passcode": room_password}
                                         await ecsocket.send_by_client(msg, client)
+
                                 break
                         if not success:
                             await ecsocket.send_by_client({"api": eclib.apis.login, "failure": True}, client)

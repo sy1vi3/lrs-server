@@ -15,7 +15,7 @@ async def get_volunteers(db):
     volunteers = dict()
     volunteer_users = await db.select(eclib.db.users.table_, [(eclib.db.users.role, "!=", eclib.roles.team)])
     for user in volunteer_users:
-        volunteers[user["name"]] = {"Role": user["role"], "Passcode": user["passcode"]}
+        volunteers[user["name"]] = {"Role": user["role"], "Passcode": user["passcode"], "Event":user["event"]}
     msg = {"api": "Volunteers", "operation": "update", "volunteers": volunteers}
     await ecsocket.send_by_access(msg, eclib.apis.event_ctrl)
 
@@ -36,12 +36,13 @@ async def add(db, data):
         while new_code in used_codes:
             new_code = ''.join(random.choice(string.ascii_uppercase + string.digits + string.ascii_lowercase) for _ in range(13))
         data['Passcode'] = new_code
-
+    
     row = {
         eclib.db.users.name: data['Name'],
         eclib.db.users.role: data['Role'],
         eclib.db.users.passcode: data['Passcode'],
-        eclib.db.users.enabled: 1
+        eclib.db.users.enabled: 1,
+        eclib.db.users.event: data['Event']
     }
 
     used_names = list()
@@ -83,7 +84,8 @@ async def edit(db, data):
             eclib.db.users.name: data['Name'],
             eclib.db.users.role: data['Role'],
             eclib.db.users.passcode: data['Passcode'],
-            eclib.db.users.enabled: 1
+            eclib.db.users.enabled: 1,
+            eclib.db.users.event: data['Event']
         }
         await db.update(eclib.db.users.table_, [(eclib.db.users.name, "==", data['OldName'])], row)
     else:
