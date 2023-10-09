@@ -23,7 +23,8 @@ async def push(db, new_message=True, client=None):
     :param client: target client (only for `get` requests)
     :type client: websockets.WebSocketCommonProtocol
     """
-    db_result = await db.select(eclib.db.chat.table_, [(eclib.db.chat.visibility, "==", eclib.db.chat.visibility_visible)])
+    db_result = await db.select_bottom(eclib.db.chat.table_, [(eclib.db.chat.visibility, "==", eclib.db.chat.visibility_visible)], "timestamp", 100)
+    db_result.reverse()
     chat = list()
     for row in db_result:
         author_type = row[eclib.db.chat.author_type]
@@ -38,8 +39,11 @@ async def push(db, new_message=True, client=None):
         elif author_type == "sticker":
             author_type = "sticker"
             author = ""
-        elif author_type == "score":
-            author_type = "score"
+        elif author_type == "driverscore":
+            author_type = "driverscore"
+            author = ""
+        elif author_type == "progscore":
+            author_type = "progscore"
             author = ""
         elif author_type == "system":
             author_type = "system"

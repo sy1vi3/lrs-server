@@ -35,7 +35,8 @@ async def handler(payload, operation, client, db):
 
             r = requests.post(endpoint, json=data, headers=headers)
             response = json.loads(r.text)
-            if (token := response['access_token']) is not None:
+            if 'access_token' in response:
+                token = response['access_token']
                 headers = {
                     'Accept': 'application/json',
                     "Authorization": f"Basic {tokens.re_test_login}",
@@ -126,8 +127,92 @@ async def handler(payload, operation, client, db):
                             sp_u_exist = True
                             account_teams.append(u_name)
 
+                    if user_id in tokens.producers.keys():
+                        admin = False
+                        u_name = tokens.producers[user_id]
+                        sp_u_exist = False
+                        for u in ecusers.User.userlist:
+                            if u.name == u_name and u.role == eclib.roles.producer:
+                                sp_u_exist = True
+                                account_teams.append(u_name)
+                        if sp_u_exist == False:
+                            all_users = await db.select(eclib.db.users.table_, [])
+                            used_codes = list()
+                            for u in all_users:
+                                used_codes.append(u['passcode'])
+                            new_code = ''.join(random.choice(string.ascii_uppercase + string.digits + string.ascii_lowercase) for _ in range(13))
+                            while new_code in used_codes:
+                                new_code = ''.join(random.choice(string.ascii_uppercase + string.digits + string.ascii_lowercase) for _ in range(13))
+                            row = {
+                                eclib.db.users.name: u_name,
+                                eclib.db.users.passcode: new_code,
+                                eclib.db.users.role: eclib.roles.producer,
+                                eclib.db.users.enabled: 1,
+                                eclib.db.users.event: "ALL"
+                            }
+                            ech.log(f"NEW USER: {u_name}: {new_code}")
+                            await db.insert(eclib.db.users.table_, row)
+                            await ecusers.User.load_users(db)
+                            sp_u_exist = True
+                            account_teams.append(u_name)
 
-
+                    if user_id in tokens.staff.keys():
+                        admin = False
+                        u_name = tokens.staff[user_id]
+                        sp_u_exist = False
+                        for u in ecusers.User.userlist:
+                            if u.name == u_name and u.role == eclib.roles.staff:
+                                sp_u_exist = True
+                                account_teams.append(u_name)
+                        if sp_u_exist == False:
+                            all_users = await db.select(eclib.db.users.table_, [])
+                            used_codes = list()
+                            for u in all_users:
+                                used_codes.append(u['passcode'])
+                            new_code = ''.join(random.choice(string.ascii_uppercase + string.digits + string.ascii_lowercase) for _ in range(13))
+                            while new_code in used_codes:
+                                new_code = ''.join(random.choice(string.ascii_uppercase + string.digits + string.ascii_lowercase) for _ in range(13))
+                            row = {
+                                eclib.db.users.name: u_name,
+                                eclib.db.users.passcode: new_code,
+                                eclib.db.users.role: eclib.roles.staff,
+                                eclib.db.users.enabled: 1,
+                                eclib.db.users.event: "ALL"
+                            }
+                            ech.log(f"NEW USER: {u_name}: {new_code}")
+                            await db.insert(eclib.db.users.table_, row)
+                            await ecusers.User.load_users(db)
+                            sp_u_exist = True
+                            account_teams.append(u_name)
+                    if user_id in tokens.teams.keys():
+                        admin = False
+                        u_names = tokens.teams[user_id]
+                        sp_u_exist = False
+                        for u_name in u_names:
+                            for u in ecusers.User.userlist:
+                                if u.name == u_name and u.role == eclib.roles.team:
+                                    sp_u_exist = True
+                                    account_teams.append(u_name)
+                            if sp_u_exist == False:
+                                all_users = await db.select(eclib.db.users.table_, [])
+                                used_codes = list()
+                                for u in all_users:
+                                    used_codes.append(u['passcode'])
+                                new_code = ''.join(random.choice(string.ascii_uppercase + string.digits + string.ascii_lowercase) for _ in range(13))
+                                while new_code in used_codes:
+                                    new_code = ''.join(random.choice(string.ascii_uppercase + string.digits + string.ascii_lowercase) for _ in range(13))
+                                row = {
+                                    eclib.db.users.name: u_name,
+                                    eclib.db.users.passcode: new_code,
+                                    eclib.db.users.role: eclib.roles.team,
+                                    eclib.db.users.enabled: 1,
+                                    eclib.db.users.event: "ALL"
+                                }
+                                ech.log(f"NEW USER: {u_name}: {new_code}")
+                                await db.insert(eclib.db.users.table_, row)
+                                await ecusers.User.load_users(db)
+                                sp_u_exist = True
+                                account_teams.append(u_name)
                     if admin:
                         admin_exist = False
                         for u in ecusers.User.userlist:

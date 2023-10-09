@@ -54,7 +54,7 @@ jwt = "JWT"
 
 moderation = "Moderation"
 
-
+help = "Help"
 
 
 tabs_ = (
@@ -72,5 +72,6 @@ tabs_ = (
     team_lounge,
     event_config,
     production,
-    home
+    home,
+    help
 )

@@ -10,6 +10,7 @@ import eclib.roles
 import ecmodules.teams
 import ecmodules.chat
 import os
+import ecusers
 
 
 async def handler(client, user, operation, payload, db):
@@ -57,3 +58,11 @@ async def handler(client, user, operation, payload, db):
     elif operation == "wipe_chat":
         await db.delete_all(eclib.db.chat.table_)
         await ecmodules.chat.push(db)
+    elif operation == "alert_user":
+        if (extracted := await ech.safe_extract(client, payload, {"message": str, "username": str})) is not None:
+            for u in ecusers.User.userlist:
+                if u.name == extracted["username"]:
+                    msg = {"api": eclib.apis.main, "operation": "show_alert", "modal": extracted["message"]}
+                    await ecsocket.send_by_user(msg, u)
+                    msg = {"api": "Sound", "operation": "other_ping"}
+                    await ecsocket.send_by_user(msg, u)

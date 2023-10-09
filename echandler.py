@@ -152,11 +152,22 @@ async def echandle(client, user, api, operation, payload):
         elif api == eclib.apis.jwt:
             if operation == "get_jwt_from_livestream":
                 room = payload['room']
+                if (recorderName := await ech.safe_extract(client, payload, {"name": str})) is None:
+                    recorderName = "Recorder"
+                if (alert := await ech.safe_extract(client, payload, {"alert": str})) is not None:
+                    if alert == "true":
+                        for u in ecusers.User.userlist:
+                            if u.role == eclib.roles.referee:
+                                room_name = int(room[4:])
+                                if u.room == room_name:
+                                    ref_text = "<span style='color: green;'>The recorder is here, you may now start the Skills match</span>"
+                                    msg = {"api": eclib.apis.main, "operation": "allow_ref_modal", "modal": ref_text}
+                                    await ecsocket.send_by_user(msg, u)
                 jwt_data = {
                     "context": {
                         "user": {
                             "avatar": "https://console.liveremoteskills.org/img/avatar/livestream.png",
-                            "name": f"Livestream",
+                            "name": recorderName,
                             "email": "",
                             "id": "abcd:a1b2c3-d4e5f6-0abc1-23de-abcdef01fedcba"
                         }
@@ -175,6 +186,8 @@ async def echandle(client, user, api, operation, payload):
                 await ecmodules.jwt.handler(client, user, operation, payload)
         elif api == eclib.apis.moderation:
             await ecmodules.moderation.handler(db, client, user, operation, payload)
+        elif api == eclib.apis.help:
+            pass
         else:
             await ech.send_error(client, "mayonase on an ecolater im going up so cya later")
     elif api == eclib.apis.main and operation == "get":
@@ -188,19 +201,20 @@ async def echandle(client, user, api, operation, payload):
         await ech.send_error(client, "RECF didn't like that... Maybe try <code>sudo [command]</code> instead?")
 
 async def log_to_file(client, message):
-    if (user := find_user_from_client(client)) is not None:
-        name = user.name
-    else:
-        name = "NOT LOGGED IN"
-    to_store = f"\n{date.today()}  |  {ech.timestamp_to_readable(ech.current_time())}  |  {client.remote_address[0]}  |  {name}"
-    length = len(to_store)
-    space_needed = 65-length
-    to_store += " " * space_needed
-    to_store += f"|  {message}"
-    with open("log/log.txt", "a") as f:
-        f.write(to_store)
-
-
+    try:
+        if (user := find_user_from_client(client)) is not None:
+            name = user.name
+        else:
+            name = "NOT LOGGED IN"
+        to_store = f"\n{date.today()}  |  {ech.timestamp_to_readable(ech.current_time())}  |  {client.request_headers['X-Forwarded-For']}  |  {name}"
+        length = len(to_store)
+        space_needed = 75-length
+        to_store += " " * space_needed
+        to_store += f"|  {message}"
+        with open("log/log.txt", "a") as f:
+            f.write(to_store)
+    except:
+        pass
 async def handler(client, _path):
     """
     Immediate function called when WebSocket payload received
@@ -211,14 +225,56 @@ async def handler(client, _path):
     """
     global db
     try:
+        old_time = 0
+        num_sent_fast = 0
+        await log_to_file(client, "Connection Request")
         async for message in client:
-
+            await log_to_file(client, message)
+            # Rate limits a particular client to no more than 5 requests in a row that are less than a second apart,
+            # and limit an account to no more than 20 in a row that are less than half a second apart
+            if (username:= find_user_from_client(client)) is not None: #Checks if they're logged in yet
+                if username in ecusers.User.banned_users:
+                    # If the user's account is in the blacklist
+                    if time.time()-ecusers.User.banned_users[username] < 300:
+                        # If they were put there less than 5 mins ago
+                        ecsocket.unregister(client)
+                        break # Drop connection
+                if username not in ecusers.User.users_info:
+                    ecusers.User.users_info[username] = {"num_fast": 0, "last_time": 0}
+                ip_old_time = ecusers.User.users_info[username]["last_time"]
+                if time.time() - ip_old_time < 0.5:
+                    ecusers.User.users_info[username]["num_fast"] += 1
+                    # If it's less than half a second from the account's last request, increase the ticker
+                else:
+                    if ecusers.User.users_info[username]["num_fast"] > 0:
+                        ecusers.User.users_info[username]["num_fast"] -= 1
+                        # If they're taking a reasonable amount of time decrease the counter, but not past 0
+                    else:
+                        ecusers.User.users_info[username]["num_fast"] = 0
+                if ecusers.User.users_info[username]["num_fast"] > 20:
+                    ecsocket.unregister(client)
+                    ecusers.User.banned_users[username] = time.time()
+                    ecusers.User.users_info[username]["num_fast"] = 0
+                    break
+ #If the IP has more than 20 fast requests built up remove the client from the list and stuff, and reset the counter, and drop the connection
+                ecusers.User.users_info[username]["last_time"] = time.time()
+            if time.time()-old_time < 0.6:
+                num_sent_fast += 1
+# If it's been less than a second since the specific client's last message (not IP, just specific client) increase the ticker
+            else:
+                if num_sent_fast > 0:
+                    num_sent_fast -= 1
+            if num_sent_fast > 15: # If the counter has built up to 5
+                await ech.send_error(client, "You are being rate limited")
+                ecsocket.unregister(client)
+                break # Drop the connection
+            old_time = time.time()
+            # Do actual handling stuff below
             try:
                 payload = json.loads(message)
             except json.JSONDecodeError:
                 await ech.send_error(client)
                 return
-            await log_to_file(client, message)
             if (extracted := await ech.safe_extract(client, payload, {"api": str, "operation": str})) is not None:
                 if extracted["api"] == eclib.apis.login and extracted["operation"] == "login":
                     if (passcode := await ech.safe_extract(client, payload, {"accessCode": str})) is not None:
@@ -226,7 +282,7 @@ async def handler(client, _path):
                         for user in ecusers.User.userlist:
                             if passcode == user.passcode and user.enabled:
                                 success = True
-                                ech.log("[LOGIN] " + user.name)
+                                # ech.log("[LOGIN] " + user.name)
                                 ecsocket.unregister(client)
                                 ecsocket.register(client, user)
                                 await echandle(client, user, eclib.apis.main, "get", None)
@@ -281,6 +337,7 @@ async def handler(client, _path):
                                     for r in ecusers.User.userlist:
                                         if r.role == eclib.roles.livestream:
                                             streaming_passcode = r.passcode
+
                                     msg = {"api": eclib.apis.output, "operation": "setStreamCode", "auth": streaming_passcode}
                                     await ecsocket.send_by_client(msg, client)
                                     await ecmodules.output.reload_active()

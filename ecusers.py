@@ -23,7 +23,8 @@ class User:
     events = list()
     event_room_data = dict()
     live_room = 0
-
+    users_info = dict()
+    banned_users = dict()
     # Allow instances of User to be stored in sets
     def __hash__(self):
         return hash(id(self))

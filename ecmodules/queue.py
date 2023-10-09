@@ -13,8 +13,10 @@ import random
 import ecmodules.output
 import requests
 import files.tokens as tokens
+from discord_webhook import DiscordWebhook
 import threading
 import time
+import asyncio
 
 def stop_room_recording(stopId, room, fileName):
     endpoint = "https://remote.robotevents.com/api/lrs/stop"
@@ -32,7 +34,7 @@ def stop_room_recording(stopId, room, fileName):
     else:
         ech.log(f"Error in stopping: {r}")
 
-def start_room_recording(url, event, team, intent, room):
+def start_room_recording(url, event, team, intent, room, timestamp):
     intent = intent.replace(" ", "_")
     endpoint = "https://remote.robotevents.com/api/lrs/start"
     headers = {
@@ -40,23 +42,30 @@ def start_room_recording(url, event, team, intent, room):
         "X-Auth-Token": tokens.rre_token,
         'Content-Type': 'application/json'
     }
+    url = url.replace(" ", "")
+    if intent.lower() != "inspection":
+        url += "&alert=true"
     info = {
       "url": url,
       "eventCode": event,
       "teamNumber": team,
       "matchType": intent,
-      "instance": round(time.time())
+      "instance": timestamp
     }
     r = requests.post(endpoint, headers=headers, json=info)
-    stopId = r.json()['stopId']
-    fileName = r.json()['fileName']
-    ecusers.User.event_room_data[room]['stopId'] = stopId
-    ecusers.User.event_room_data[room]['fileName'] = fileName
-    if r.status_code == 202 or r.status_code == 201:
-        ech.log(f"Starting recording room {room}. StopId = {stopId}")
-    else:
-        ech.log(f"Error in starting {room}: {r.json()} | {r.status_code}")
-
+    try:
+        stopId = r.json()['stopId']
+        fileName = r.json()['fileName']
+        webhook = DiscordWebhook(url=tokens.webhook_url, content=f"New recording: `{fileName}`")
+        response = webhook.execute()
+        ecusers.User.event_room_data[room]['stopId'] = stopId
+        ecusers.User.event_room_data[room]['fileName'] = fileName
+        if r.status_code == 202 or r.status_code == 201:
+            ech.log(f"Starting recording room {room}. StopId = {stopId}")
+        else:
+            ech.log(f"Error in starting {room}: {r.json()} | {r.status_code}")
+    except:
+        print("error in start: ", r.json())
 
 async def rm_from_active(team):
     for room in ecusers.User.event_room_data:
@@ -75,11 +84,13 @@ async def rm_from_active(team):
             msg = {"api": eclib.apis.output, "operation": "setAliveRooms", "data": room_data}
             await ecsocket.send_by_role(msg, eclib.roles.output)
             await ecmodules.output.reload_active()
-
-            stopId = ecusers.User.event_room_data[room]['stopId']
-            fileName = ecusers.User.event_room_data[room]['fileName']
-            kill_thread = threading.Thread(target=stop_room_recording, args=(stopId, room, fileName), daemon=True)
-            kill_thread.start()
+            try:
+                stopId = ecusers.User.event_room_data[room]['stopId']
+                fileName = ecusers.User.event_room_data[room]['fileName']
+                kill_thread = threading.Thread(target=stop_room_recording, args=(stopId, room, fileName), daemon=True)
+                kill_thread.start()
+            except:
+                pass
 
 
 
@@ -260,13 +271,21 @@ async def invite_team(db, user, client, team_num, intent):
         if streaming_passcode == "":
             await ech.send_error(client, "Tell the EP that the system is having trouble locating a livestream user")
             return
-        url = f"https://console.liveremoteskills.org/stream?room={user.room}&token={streaming_passcode}"
+        url = f"https://console.liveremoteskills.org/stream?room={user.room}&token={streaming_passcode}&name={team_num}-{intent}"
         team_info = await db.select(eclib.db.teams.table_, [(eclib.db.teams.team_num, "==", team_num)])
         if len(team_info) > 0:
             event = team_info[0]['div']
         else:
             event = "RE-XX-00-0000"
-        record_thread = threading.Thread(target=start_room_recording, args=(url, event, team_num, intent, user.room), daemon=True)
+        timestamp = round(time.time())
+        row = {
+            eclib.db.recordings.team_num: team_num,
+            eclib.db.recordings.type: intent,
+            eclib.db.recordings.timestamp: timestamp,
+            eclib.db.recordings.url: f"{event}_{team_num}_{intent.replace(' ', '_')}_{timestamp}.webm"
+        }
+        await db.insert(eclib.db.recordings.table_, row)
+        record_thread = threading.Thread(target=start_room_recording, args=(url, event, team_num, intent, user.room, timestamp), daemon=True)
         record_thread.start()
 
 async def ctrl_invite(payload, client, user, db):

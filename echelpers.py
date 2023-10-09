@@ -19,9 +19,9 @@ INSPECTED_TEAMS = list()
 SKILLS_ATTEMPTS = dict()
 
 def log(message):
-    webhook = DiscordWebhook(url=tokens.webhook_url, content=f"`{message}`")
-    response = webhook.execute()
-
+    # webhook = DiscordWebhook(url=tokens.webhook_url, content=f"`{message}`")
+    # response = webhook.execute()
+    pass
 async def create_jwt(name="", avatar="", room="*", moderator=False, expiry = 600):
     jwt_data = {
         "context": {

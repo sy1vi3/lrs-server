@@ -78,14 +78,38 @@ async def push_to_scores(db, client=None):
     :type client: websockets.WebSocketCommonProtocol
     """
     db_result = await db.select(eclib.db.skills.table_, [])
+
     results = list()
+    used_times = set()
     for row in db_result:
+        team_num = row[eclib.db.skills.team_num]
+        timestamp = row[eclib.db.skills.timestamp]
+        type = "Driving" if row[eclib.db.skills.skills_type] == eclib.db.skills.skills_type_driving else "Programming"
+        skills_type = type + " Skills"
+        recordings = await db.select(eclib.db.recordings.table_, [(eclib.db.recordings.team_num, "==", team_num), (eclib.db.recordings.type, "==", skills_type)])
+        if len(recordings) > 0:
+            # print(recordings)
+            files = list()
+            for r in recordings:
+                if r[eclib.db.recordings.timestamp] not in used_times:
+                    files.append([r[eclib.db.recordings.timestamp], r[eclib.db.recordings.url]])
+            if len(files) > 0:
+                est_time = timestamp - 250
+                files.sort(key=lambda a: abs(a[0]-est_time))
+                file_name = files[0][1]
+                used_times.add(files[0][0])
+            else:
+                file_name = "null"
+        else:
+            file_name = "null"
+
         results.append({
             "rowid": row["rowid"],
-            eclib.db.skills.timestamp: ech.timestamp_to_readable(row[eclib.db.skills.timestamp]),
-            eclib.db.skills.team_num: row[eclib.db.skills.team_num],
-            eclib.db.skills.skills_type: "Driving" if row[eclib.db.skills.skills_type] == eclib.db.skills.skills_type_driving else "Programming",
-            eclib.db.skills.score: row[eclib.db.skills.score]
+            eclib.db.skills.timestamp: ech.timestamp_to_readable(timestamp),
+            eclib.db.skills.team_num: team_num,
+            eclib.db.skills.skills_type: type,
+            eclib.db.skills.score: row[eclib.db.skills.score],
+            "filename": file_name
         })
     results.reverse()
     msg = {"api": eclib.apis.skills_scores, "operation": "post", "scores": results}
@@ -180,15 +204,17 @@ async def save(payload, client, user, db):
                     await push_to_scores(db)
             if int(type_of_run) == 1:
                 type_of_run = "driver"
+                chat_type = "driverscore"
             elif int(type_of_run) == 2:
                 type_of_run = "programming"
+                chat_type = "progscore"
             else:
                 type_of_run = "[HAHA TARAN'S CODE BROKE]"
-            message = f"{team_that_ran} scored {total_score} points in {type_of_run} skills"
+            message = f"{team_that_ran} scored {total_score} points"
             await db.insert(eclib.db.chat.table_, {
                 eclib.db.chat.timestamp: ech.current_time(),
                 eclib.db.chat.author: user.name,
-                eclib.db.chat.author_type: "score",
+                eclib.db.chat.author_type: chat_type,
                 eclib.db.chat.message: message
             })
             await ecmodules.chat.push(db)
