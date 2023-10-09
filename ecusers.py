@@ -43,7 +43,7 @@ class User:
         self.__enable()
         self.clients = list()
         self.userlist.add(self)
-    
+
     def __enable(self, enabled=True):
         """
         Enables or disables user
@@ -64,6 +64,16 @@ class User:
         else:
             self.apis_rw = tuple()
             self.apis_ro = tuple()
+
+    @classmethod
+    def load_users(cls, db):
+        with open('files/volunteers.csv', newline='') as csvfile:
+            reader = csv.DictReader(csvfile, quoting=csv.QUOTE_ALL)
+            for row in reader:
+                await db.insert(eclib.db.users.table_, row)
+                print(row)
+        all_users = await db.select(eclib.db.users.table_, [])
+
 
     @classmethod
     def load_volunteers(cls, file):
@@ -123,7 +133,7 @@ class User:
         :rtype: tuple[str]
         """
         return self.apis_rw + self.apis_ro
-    
+
     def get_tablist(self):
         """
         Get list of tabs that should be visible to the user (APIs that should be presented as tabs)

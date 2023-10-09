@@ -11,6 +11,7 @@ import eclib.db.inspection
 import eclib.db.skills
 import eclib.db.chat
 import eclib.db.rankings
+import eclib.db.users
 
 
 class Database:
@@ -45,6 +46,7 @@ class Database:
         self.cursor.execute(eclib.db.skills.create_)
         self.cursor.execute(eclib.db.chat.create_)
         self.cursor.execute(eclib.db.rankings.create_)
+        self.cursor.execute(eclib.db.users.create_)
 
     async def insert(self, table, values):
         """

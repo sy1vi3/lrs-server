@@ -22,7 +22,7 @@ PRIV_KEY = "cert/privkey.pem"
 
 if __name__ == "__main__":
     db = ecdatabase.Database(DB_FILE)
-    ecusers.User.load_volunteers(VOLUNTEERS_FILE)
+    ecusers.User.load_users(db)
     print("Loaded volunteers")
     print("Loaded teams")
     echandler.db = db
