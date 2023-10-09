@@ -44,6 +44,8 @@ team_lounge = "Pits"
 
 event_config = "Event Config"
 
+output = "Output"
+
 tabs_ = (
     inspection,
     inspection_ctrl,

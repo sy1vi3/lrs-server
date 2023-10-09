@@ -219,10 +219,10 @@ async def calc_rankings(db):
         with open('files/skills.csv', 'w', newline='') as f:
             skills_writer = csv.writer(f)
             skills_writer.writerow(['Rank','Team','TotalScore','ProgHighScore','ProgHighScoreStopTime','ProgHighScoreTime','ProgAttempts','DriverHighScore','DriverHighScoreStopTime','DriverHighScoreTime','DriverAttempts','Age Group'])
-            print(div)
+            ech.log(div)
             for row in csv_rows_to_add:
                 skills_writer.writerow(row)
-                print(row)
+                ech.log(row)
 
         with open('files/config.json', 'r') as f:
             config = json.load(f)
@@ -245,7 +245,7 @@ async def calc_rankings(db):
 
         r = requests.post(endpoint, headers=headers, files=files)
 
-        print(r.status_code)
+        ech.log(f"Updated Scores, Response code {r.status_code}")
     msg = {"api": eclib.apis.rankings, "operation": "return_data", "list": div_ranks}
     await ecsocket.send_by_access(msg, eclib.apis.rankings)
 

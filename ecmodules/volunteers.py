@@ -51,7 +51,7 @@ async def add(db, data):
     if data['Name'] not in used_names:
         await db.insert(eclib.db.users.table_, row)
     else:
-        print("USERADD FAILED: DUPLICATE NAME")
+        ech.log("USERADD FAILED: DUPLICATE NAME")
     await get_volunteers(db)
     await ecusers.User.load_users(db)
 
@@ -89,7 +89,7 @@ async def edit(db, data):
         }
         await db.update(eclib.db.users.table_, [(eclib.db.users.name, "==", data['OldName'])], row)
     else:
-        print("USEREDIT FAILED: DUPLICATE NAME")
+        ech.log("USEREDIT FAILED: DUPLICATE NAME")
     await get_volunteers(db)
     await ecusers.User.load_users(db)
 

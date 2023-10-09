@@ -6,6 +6,8 @@ import datetime
 import time
 import eclib.apis
 import eclib.db
+from discord_webhook import DiscordWebhook
+import files.tokens as tokens
 
 TEAM_CHAT_ENABLED = False
 INSPECTION_OPEN = False
@@ -13,6 +15,10 @@ SKILLS_OPEN = False
 
 INSPECTED_TEAMS = list()
 SKILLS_ATTEMPTS = dict()
+
+def log(message):
+    webhook = DiscordWebhook(url=tokens.webhook_url, content=message)
+    response = webhook.execute()
 
 
 async def send_error(client, error_msg="An error occurred. Please try again."):

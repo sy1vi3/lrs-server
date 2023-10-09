@@ -9,6 +9,7 @@ referee = "Head Referee"
 staff = "Staff"
 observer = "Observer"
 livestream = "Livestream"
+output = "Output"
 
 RW_ = {
     team: (ecapis.chat, ecapis.inspection, ecapis.skills),
@@ -16,7 +17,8 @@ RW_ = {
     referee: (ecapis.chat, ecapis.inspection_ctrl, ecapis.skills_ctrl),
     staff: (ecapis.chat,),
     observer: tuple(),
-    livestream: tuple()
+    livestream: tuple(),
+    output: tuple()
 }
 
 RO_ = {
@@ -25,7 +27,8 @@ RO_ = {
     referee: (ecapis.skills_scores, ecapis.rankings, ecapis.stats, ecapis.queue, ecapis.event_room),
     staff: (ecapis.inspection_ctrl, ecapis.skills_ctrl, ecapis.skills_scores, ecapis.rankings, ecapis.stats, ecapis.queue),
     observer: (ecapis.skills_scores, ecapis.rankings, ecapis.stats, ecapis.queue),
-    livestream: (ecapis.livestream, ecapis.rankings, ecapis.stats, ecapis.queue)
+    livestream: (ecapis.livestream, ecapis.rankings, ecapis.stats, ecapis.queue),
+    output: (ecapis.livestream, ecapis.rankings, ecapis.stats, ecapis.queue, ecapis.output)
 }
 
 STAFF_ROLES_ = (event_partner, referee, staff)

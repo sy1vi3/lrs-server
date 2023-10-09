@@ -158,7 +158,7 @@ async def load(db):
                 eclib.db.users.enabled: 1,
                 eclib.db.users.event: event
             }
-            print(team, event)
+            ech.log(team, event)
             await db.upsert(eclib.db.users.table_, row, eclib.db.users.name)
 
 
@@ -182,7 +182,7 @@ async def load(db):
     new_teams = await db.select(eclib.db.teams.table_, [])
     msg = {"api": eclib.apis.skills_ctrl, "operation": "set_teams", "teams": new_teams}
     await ecsocket.send_by_access(msg, eclib.apis.main)
-    print("LOADED TEAMS")
+    ech.log("LOADED TEAMS")
 
 async def handler(db, operation, payload):
     if operation == "edit":

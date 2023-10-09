@@ -10,6 +10,7 @@ import eclib.db.users
 import random
 import string
 import ecsocket
+import echelpers as ech
 
 
 class User:
@@ -20,6 +21,7 @@ class User:
     rooms = list()
     room_codes = dict()
     events = list()
+    event_room_data = dict()
 
     # Allow instances of User to be stored in sets
     def __hash__(self):
@@ -82,6 +84,7 @@ class User:
 
         ep_in_users = False
         livestream_in_users = False
+        output_in_users = False
         used_codes = list()
 
         for u in all_users:
@@ -89,6 +92,8 @@ class User:
                 ep_in_users = True
             if u['role'] == eclib.roles.livestream:
                 livestream_in_users = True
+            if u['role'] == eclib.roles.output:
+                output_in_users = True
             used_codes.append(u['passcode'])
         if ep_in_users == False:
             new_code = ''.join(random.choice(string.ascii_uppercase + string.digits + string.ascii_lowercase) for _ in range(13))
@@ -102,7 +107,7 @@ class User:
                 eclib.db.users.event: "ALL"
             }
             u = User("Admin", new_code, eclib.roles.event_partner, "ALL")
-            print(f"NEW USER: Admin: {new_code}")
+            ech.log(f"NEW USER: Admin: {new_code}")
             await db.insert(eclib.db.users.table_, row)
         if livestream_in_users == False:
             new_code = ''.join(random.choice(string.ascii_uppercase + string.digits + string.ascii_lowercase) for _ in range(13))
@@ -116,7 +121,21 @@ class User:
                 eclib.db.users.event: "ALL"
             }
             u = User("Livestream", new_code, eclib.roles.livestream, "ALL")
-            print(f"NEW USER: LIVESTREAM: {new_code}")
+            ech.log(f"NEW USER: LIVESTREAM: {new_code}")
+            await db.insert(eclib.db.users.table_, row)
+        if output_in_users == False:
+            new_code = ''.join(random.choice(string.ascii_uppercase + string.digits + string.ascii_lowercase) for _ in range(13))
+            while new_code in used_codes:
+                new_code = ''.join(random.choice(string.ascii_uppercase + string.digits + string.ascii_lowercase) for _ in range(13))
+            row = {
+                eclib.db.users.name: "Output",
+                eclib.db.users.passcode: new_code,
+                eclib.db.users.role: eclib.roles.output,
+                eclib.db.users.enabled: 1,
+                eclib.db.users.event: "ALL"
+            }
+            u = User("Output", new_code, eclib.roles.output, "ALL")
+            ech.log(f"NEW USER: OUTPUT: {new_code}")
             await db.insert(eclib.db.users.table_, row)
         all_users = await db.select(eclib.db.users.table_, [(eclib.db.users.enabled, "==", 1)])
         existing_users = list()
@@ -146,7 +165,6 @@ class User:
                     await ecsocket.send_by_access({"api": eclib.apis.meeting_ctrl, "operation": "all_rooms", "rooms": rooms}, eclib.apis.meeting_ctrl)
         with open("log/log.txt", "a") as f:
             f.write(f"\n Room Codes: {User.room_codes}")
-        print(User.room_codes)
         for user in disabled_users:
             name = user["name"]
             if name in existing_users:

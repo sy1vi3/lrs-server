@@ -11,6 +11,20 @@ import ecusers
 import string
 import random
 
+async def rm_from_active(team):
+    for room in ecusers.User.event_room_data:
+        room_team = ecusers.User.event_room_data[room]['info']['team']
+        if room_team == team:
+            info = {
+                "team": "",
+                "location": "",
+                "name": ""
+            }
+            ecusers.User.event_room_data[room]['info'] = info
+            ecusers.User.event_room_data[room]['active'] = False
+            msg = {"api": eclib.apis.livestream, "operation": "update", "room": room, "data": info}
+            await ecsocket.send_by_role(msg, eclib.roles.livestream)
+
 
 async def push_update(db, client=None, user=None):
     """
@@ -131,6 +145,7 @@ async def team_unqueue(team, db):
         eclib.db.queue.time_removed: ech.current_time()
     })
     await push_update(db)
+    await rm_from_active(team.name)
 
 
 async def ctrl_invite(payload, client, user, db):
@@ -186,6 +201,7 @@ async def ctrl_invite(payload, client, user, db):
                 "location": location,
                 "name": team_name
             }
+            ecusers.User.event_room_data[user.room] = {"passcode": password, "info": info, "active": True}
             msg = {"api": eclib.apis.livestream, "operation": "update", "room": user.room, "data": info}
             await ecsocket.send_by_role(msg, eclib.roles.livestream)
             msg = {"api": eclib.apis.event_ctrl, "operation": "room_code_update", "rooms": ecusers.User.room_codes}
@@ -221,5 +237,6 @@ async def ctrl_remove(payload, client, user, db):
                 eclib.db.queue.time_removed: ech.current_time()
             })
             await push_update(db)
+            await rm_from_active(team_num)
         else:
             await ech.send_error(client)

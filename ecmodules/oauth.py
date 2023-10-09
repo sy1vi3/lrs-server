@@ -87,7 +87,7 @@ async def handler(payload, operation, client, db):
                                 eclib.db.users.enabled: 1,
                                 eclib.db.users.event: "ALL"
                             }
-                            print(f"NEW USER: {u_name}: {new_code}")
+                            ech.log(f"NEW USER: {u_name}: {new_code}")
                             await db.insert(eclib.db.users.table_, row)
                             await ecusers.User.load_users(db)
                             sp_u_exist = True

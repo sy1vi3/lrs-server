@@ -163,6 +163,5 @@ async def load_inspected_teams(db):
     db_result = await db.select(eclib.db.inspection.table_, [(eclib.db.inspection.result, "==", eclib.db.inspection.result_passed)])
     ech.INSPECTED_TEAMS.clear()
     for row in db_result:
-        print(row)
         ech.INSPECTED_TEAMS.append(row[eclib.db.inspection.team_num])
     ech.INSPECTED_TEAMS.sort()

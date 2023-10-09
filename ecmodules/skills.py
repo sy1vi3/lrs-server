@@ -257,9 +257,11 @@ async def ctrl_handler(client, user, operation, payload, db):
         await ecmodules.queue.ctrl_invite(payload, client, user, db)
 
     elif operation == "showTeam":
-        if (extracted := await ech.safe_extract(client, payload, {eclib.db.skills.team_num: str, "scoresheet": dict})) is not None:
+        if (extracted := await ech.safe_extract(client, payload, {eclib.db.skills.team_num: str, "scoresheet": dict, "room": int})) is not None:
             msg = {"api": eclib.apis.skills, "operation": "showScore", "scoresheet": extracted["scoresheet"]}
+            stream_msg = {"api": eclib.apis.livestream, "operation": "showScore", "scoresheet": extracted["scoresheet"], "room": extracted["room"]}
             await ecsocket.send_by_user(msg, ecusers.User.find_user(extracted[eclib.db.skills.team_num]))
+            await ecsocket.send_by_role(stream_msg, eclib.roles.livestream)
 
     elif operation == "save":
         await save(payload, client, user, db)

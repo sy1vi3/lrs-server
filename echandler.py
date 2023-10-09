@@ -168,7 +168,7 @@ async def handler(client, _path):
                         for user in ecusers.User.userlist:
                             if passcode == user.passcode and user.enabled:
                                 success = True
-                                print("[LOGIN] " + user.name)
+                                ech.log("[LOGIN] " + user.name)
                                 ecsocket.unregister(client)
                                 ecsocket.register(client, user)
                                 await echandle(client, user, eclib.apis.main, "get", None)
@@ -207,9 +207,16 @@ async def handler(client, _path):
                                     await ecsocket.send_by_client(msg, client)
                                 if user.role == eclib.roles.livestream:
                                     if (roomnum := await ech.safe_extract(client, payload, {"room_num": str})) is not None:
-                                        room_password = ecusers.User.room_codes[int(roomnum)]
-                                        msg = {"api": eclib.apis.livestream, "operation": "code", "passcode": room_password}
+                                        try:
+                                            room_info = ecusers.User.event_room_data[int(roomnum)]
+                                        except:
+                                            room_info = {"passcode": ecusers.User.room_codes[int(roomnum)], "info": {"team": "", "location": "", "name": ""}}
+                                        msg = {"api": eclib.apis.livestream, "operation": "code", "info": room_info}
                                         await ecsocket.send_by_client(msg, client)
+                                if user.role == eclib.roles.output:
+                                    room_data = ecusers.User.event_room_data
+                                    msg = {"api": eclib.apis.output, "operation": "setAliveRooms", "data": room_data}
+                                    await ecsocket.send_by_client(msg, client)
 
                                 break
                         if not success:
