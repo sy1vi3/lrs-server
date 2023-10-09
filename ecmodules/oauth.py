@@ -18,7 +18,7 @@ import json
 async def handler(payload, operation, client, db):
     if operation == "send_code":
         if (code := payload['code']) is not None:
-            endpoint = "https://test.robotevents.com/oauth/token"
+            endpoint = "https://www.robotevents.com/oauth/token"
             data = {
                 "client_id": 8,
                 "client_secret": tokens.secret,
@@ -28,7 +28,6 @@ async def handler(payload, operation, client, db):
             }
             headers = {
                 'Accept': 'application/json',
-                "Authorization": f"Basic {tokens.re_test_login}",
                 'Content-Type': 'application/json'
             }
 
@@ -41,7 +40,7 @@ async def handler(payload, operation, client, db):
                     "X-Auth-Token": token,
                     'Content-Type': 'application/json'
                 }
-                response = requests.get(f'https://test.robotevents.com/api/v2/teams?myTeams=true', headers=headers).json()
+                response = requests.get(f'https://www.robotevents.com/api/v2/teams?myTeams=true', headers=headers).json()
                 if (data := response['data']) is not None:
                     account_teams = []
                     teams_codes = []

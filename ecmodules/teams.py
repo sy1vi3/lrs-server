@@ -15,6 +15,7 @@ import ecusers
 import ecsocket
 import ecmodules.skills
 import ecmodules.inspection
+import json
 
 async def get_teams(db):
     teams = dict()
@@ -36,8 +37,9 @@ async def load(db):
     """
     teams_loaded = []
     fail_read = False
-    with open('files/event_code.txt', 'r') as f:
-        event_code = f.read()
+    with open('files/config.json', 'r') as f:
+        config = json.load(f)
+        event_code = config['event-code']
     headers = {"Authorization": f"Bearer {tokens.re_read_token}"}
     try:
         team_data_object = []

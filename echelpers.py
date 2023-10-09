@@ -74,7 +74,7 @@ def timestamp_to_readable(timestamp, gmt_to_local=-7):
     :return: human-readable time in desired timezone
     :rtype: str
     """
-    return (datetime.datetime.utcfromtimestamp(timestamp) + datetime.timedelta(hours=gmt_to_local)).strftime('%-I:%M %p')
+    return (datetime.datetime.utcfromtimestamp(timestamp) + datetime.timedelta(hours=-5)).strftime('%-I:%M %p')
 
 
 def current_time():

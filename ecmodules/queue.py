@@ -2,6 +2,7 @@
 Handle queue-related tasks
 """
 import eclib.db.queue
+import eclib.db.teams
 import ecsocket
 import eclib.apis
 import echelpers as ech
@@ -164,15 +165,28 @@ async def ctrl_invite(payload, client, user, db):
                 eclib.db.queue.referee: user.name
             })
             password = (''.join(random.choice(string.digits) for _ in range(4)))
-            await ecsocket.send_by_access({"api": eclib.apis.meeting_ctrl, "room": user.room, "password": password}, eclib.apis.meeting_ctrl)
+            await ecsocket.send_by_access({"api": eclib.apis.meeting_ctrl, "operation": "set_code", "room": user.room, "password": password}, eclib.apis.meeting_ctrl)
             team_msg = {"api": eclib.apis.main, "modal":
                         "<p>You are invited to join the video call:</p>" +
                         "<p><a href=\"https://connect.liveremoteskills.org/room" + str(user.room) + "\" target=\"_blank\">" +
                         "https://connect.liveremoteskills.org/room" + str(user.room) + "</a></p>" +
                         "<p>Password: <big><strong><tt>" + password + "</tt></strong></big></p>"
                         }
+            ecusers.User.room_codes[user.room] = password
             await ecsocket.send_by_user(team_msg, ecusers.User.find_user(team_num))
             await push_update(db)
+            team_data_result = await db.select(eclib.db.teams.table_, [(eclib.db.teams.team_num, "==", team_num)])
+            team_data = team_data_result[0]
+            location = team_data['location']
+            team_name = team_data['teamName']
+
+            info = {
+                "team": team_num,
+                "location": location,
+                "name": team_name
+            }
+            msg = {"api": eclib.apis.livestream, "operation": "update", "room": user.room, "data": info}
+            await ecsocket.send_by_role(msg, eclib.roles.livestream)
             return True
     return False
 

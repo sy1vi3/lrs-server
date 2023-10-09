@@ -10,6 +10,7 @@ from datetime import datetime
 import csv
 import files.tokens as tokens
 import requests
+import json
 
 async def get_divs(db):
     divs = []
@@ -222,13 +223,15 @@ async def calc_rankings(db):
         for row in csv_rows_to_add:
             skills_writer.writerow(row)
 
-    with open('files/event_code.txt', 'r') as f:
-        event_code = f.read()
+    with open('files/config.json', 'r') as f:
+        config = json.load(f)
+        event_code = config['event-code']
+        skills_auth_code = config['auth-code']
     read_headers = {"Authorization": f"Bearer {tokens.re_read_token}"}
     response = requests.get(f'https://www.robotevents.com/api/v2/events?sku[]={event_code}', headers=read_headers).json()
     id = response['data'][0]['id']
 
-    endpoint = f"https://test.robotevents.com/api/live/events/{id}/skills"
+    endpoint = f"https://www.robotevents.com/api/live/events/{id}/skills?skills_auth_code={skills_auth_code}"
     headers = {
         "X-Auth-Token": tokens.re_write_token,
         "Accept": "application/json",

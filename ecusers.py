@@ -9,6 +9,7 @@ import asyncio
 import eclib.db.users
 import random
 import string
+import ecsocket
 
 
 class User:
@@ -17,6 +18,7 @@ class User:
     """
     userlist = set()
     rooms = list()
+    room_codes = dict()
 
     # Allow instances of User to be stored in sets
     def __hash__(self):
@@ -75,11 +77,14 @@ class User:
         disabled_users = await db.select(eclib.db.users.table_, [(eclib.db.users.enabled, "==", 0)])
 
         ep_in_users = False
+        livestream_in_users = False
         used_codes = list()
 
         for u in all_users:
             if u['role'] == eclib.roles.event_partner:
                 ep_in_users = True
+            if u['role'] == eclib.roles.livestream:
+                livestream_in_users = True
             used_codes.append(u['passcode'])
         if ep_in_users == False:
             new_code = ''.join(random.choice(string.ascii_uppercase + string.digits + string.ascii_lowercase) for _ in range(13))
@@ -92,6 +97,18 @@ class User:
                 eclib.db.users.enabled: 1
             }
             print(f"NEW USER: EVENT PARTNER: {new_code}")
+            await db.insert(eclib.db.users.table_, row)
+        if livestream_in_users == False:
+            new_code = ''.join(random.choice(string.ascii_uppercase + string.digits + string.ascii_lowercase) for _ in range(13))
+            while new_code in used_codes:
+                new_code = ''.join(random.choice(string.ascii_uppercase + string.digits + string.ascii_lowercase) for _ in range(13))
+            row = {
+                eclib.db.users.name: "Livestream",
+                eclib.db.users.passcode: new_code,
+                eclib.db.users.role: eclib.roles.livestream,
+                eclib.db.users.enabled: 1
+            }
+            print(f"NEW USER: LIVESTREAM: {new_code}")
             await db.insert(eclib.db.users.table_, row)
 
         existing_users = list()
@@ -110,6 +127,14 @@ class User:
                 if u.role == eclib.roles.referee:
                     cls.rooms.append(u)
                     u.room = len(cls.rooms)
+                    password = (''.join(random.choice(string.digits) for _ in range(4)))
+                    await ecsocket.send_by_access({"api": eclib.apis.meeting_ctrl, "operation": "set_code", "room": u.room, "password": password}, eclib.apis.meeting_ctrl)
+                    User.room_codes[u.room] = password
+                    rooms = []
+                    for u in cls.rooms:
+                        rooms.append(u.room)
+                    await ecsocket.send_by_access({"api": eclib.apis.meeting_ctrl, "operation": "all_rooms", "rooms": rooms}, eclib.apis.meeting_ctrl)
+        print(User.room_codes)
 
         for user in disabled_users:
             name = user["name"]

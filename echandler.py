@@ -84,7 +84,7 @@ async def echandle(client, user, api, operation, payload):
             await ecmodules.teams.handler(db, operation, payload)
         elif api == eclib.apis.meeting_ctrl:
             if operation == "init":
-                await ecsocket.send_by_client({"api": eclib.apis.meeting_ctrl, "rooms": len(ecusers.User.rooms)}, client)
+                await ecsocket.send_by_client({"api": eclib.apis.meeting_ctrl, "operation": "set_code", "rooms": len(ecusers.User.rooms)}, client)
         else:
             await ech.send_error(client)
     elif api == eclib.apis.main and operation == "get":
@@ -127,6 +127,17 @@ async def handler(client, _path):
                                 if user.role == eclib.roles.event_partner:
                                     await ecmodules.volunteers.get_volunteers(db)
                                     await ecmodules.teams.get_teams(db)
+                                    room_data = ecusers.User.rooms
+                                    rooms = []
+                                    for u in room_data:
+                                        rooms.append(u.room)
+
+                                    await ecsocket.send_by_access({"api": eclib.apis.meeting_ctrl, "operation": "all_rooms", "rooms": rooms}, eclib.apis.meeting_ctrl)
+                                if user.role == eclib.roles.livestream:
+                                    if (roomnum := await ech.safe_extract(client, payload, {"room_num": str})) is not None:
+                                        room_password = ecusers.User.room_codes[int(roomnum)]
+                                        msg = {"api": eclib.apis.livestream, "operation": "code", "passcode": room_password}
+                                        await ecsocket.send_by_client(msg, client)
                                 break
                         if not success:
                             await ecsocket.send_by_client({"api": eclib.apis.login, "failure": True}, client)
