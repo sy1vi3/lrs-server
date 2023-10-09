@@ -40,7 +40,8 @@ async def add(db, data):
     row = {
         eclib.db.users.name: data['Name'],
         eclib.db.users.role: data['Role'],
-        eclib.db.users.passcode: data['Passcode']
+        eclib.db.users.passcode: data['Passcode'],
+        eclib.db.users.enabled: 1
     }
 
     used_names = list()
@@ -81,7 +82,8 @@ async def edit(db, data):
         row = {
             eclib.db.users.name: data['Name'],
             eclib.db.users.role: data['Role'],
-            eclib.db.users.passcode: data['Passcode']
+            eclib.db.users.passcode: data['Passcode'],
+            eclib.db.users.enabled: 1
         }
         await db.update(eclib.db.users.table_, [(eclib.db.users.name, "==", data['OldName'])], row)
     else:

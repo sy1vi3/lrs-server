@@ -44,7 +44,6 @@ tabs_ = (
     skills_scores,
     meeting_ctrl,
     event_ctrl,
-    tech_support,
     rankings,
     stats
 )

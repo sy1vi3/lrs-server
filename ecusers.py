@@ -7,7 +7,8 @@ import csv
 import eclib.roles
 import asyncio
 import eclib.db.users
-
+import random
+import string
 
 
 class User:
@@ -43,11 +44,11 @@ class User:
         self.name = name
         self.passcode = passcode
         self.role = role
-        self.__enable()
+        self.enable()
         self.clients = list()
         self.userlist.add(self)
 
-    def __enable(self, enabled=True):
+    def enable(self, enabled=True):
         """
         Enables or disables user
 
@@ -70,7 +71,8 @@ class User:
 
     @classmethod
     async def load_users(cls, db):
-        all_users = await db.select(eclib.db.users.table_, [])
+        all_users = await db.select(eclib.db.users.table_, [(eclib.db.users.enabled, "==", 1)])
+        disabled_users = await db.select(eclib.db.users.table_, [(eclib.db.users.enabled, "==", 0)])
 
         ep_in_users = False
         used_codes = list()
@@ -81,19 +83,20 @@ class User:
             used_codes.append(u['passcode'])
         if ep_in_users == False:
             new_code = ''.join(random.choice(string.ascii_uppercase + string.digits + string.ascii_lowercase) for _ in range(13))
-            while new_code in usedCodes:
+            while new_code in used_codes:
                 new_code = ''.join(random.choice(string.ascii_uppercase + string.digits + string.ascii_lowercase) for _ in range(13))
             row = {
                 eclib.db.users.name: "Event Partner",
                 eclib.db.users.passcode: new_code,
-                eclib.db.users.role: eclib.roles.event_partner
+                eclib.db.users.role: eclib.roles.event_partner,
+                eclib.db.users.enabled: 1
             }
             print(f"NEW USER: EVENT PARTNER: {new_code}")
             await db.insert(eclib.db.users.table_, row)
 
         existing_users = list()
         for u in cls.userlist:
-            u.__enable(False)
+            u.enable(False)
             existing_users.append(u.name)
         for user in all_users:
             name = user["name"]
@@ -101,12 +104,23 @@ class User:
                 u = cls.find_user(name)
                 u.role = user["role"]
                 u.passcode = user["passcode"]
-                u.__enable()
+                u.enable()
             else:
                 u = User(user["name"], user["passcode"], user["role"])
                 if u.role == eclib.roles.referee:
                     cls.rooms.append(u)
                     u.room = len(cls.rooms)
+
+        for user in disabled_users:
+            name = user["name"]
+            if name in existing_users:
+                u = cls.find_user(name)
+                u.role = user["role"]
+                u.passcode = user["passcode"]
+                u.enable(False)
+            else:
+                u = User(user["name"], user["passcode"], user["role"])
+                u.enable(False)
 
     def get_apis(self):
         """

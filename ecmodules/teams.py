@@ -18,9 +18,8 @@ async def get_teams(db):
     teams = dict()
     team_users = await db.select(eclib.db.users.table_, [(eclib.db.users.role, "==", eclib.roles.team)])
     for user in team_users:
-        teams[user["name"]] = {"Role": user["role"], "Passcode": user["passcode"]}
+        teams[user["name"]] = {"Role": user["role"], "Passcode": user["passcode"], "Enabled": user['enabled']}
     msg = {"api": "Team Control", "operation": "update_teams", "teams": teams}
-    print("Sending Team Info")
     await ecsocket.send_by_access(msg, eclib.apis.event_ctrl)
 
 
@@ -134,7 +133,8 @@ async def load(db):
             row = {
                 eclib.db.users.name: team,
                 eclib.db.users.passcode: new_code,
-                eclib.db.users.role: eclib.roles.team
+                eclib.db.users.role: eclib.roles.team,
+                eclib.db.users.enabled: 1
             }
             await db.upsert(eclib.db.users.table_, row, eclib.db.users.name)
 
@@ -151,9 +151,12 @@ async def handler(db, operation, payload):
         teamnum = user_edit_data['Name']
         passcode = user_edit_data['Passcode']
 
+        enabled = 1
         used_codes = list()
         for u in all_users:
             used_codes.append([u['passcode'], u['name']])
+            if u['name'] == teamnum:
+                enabled = u['enabled']
         codesonly = list()
         for u in all_users:
             codesonly.append(u['passcode'])
@@ -172,7 +175,8 @@ async def handler(db, operation, payload):
         row = {
             eclib.db.users.name: teamnum,
             eclib.db.users.passcode: passcode,
-            eclib.db.users.role: eclib.roles.team
+            eclib.db.users.role: eclib.roles.team,
+            eclib.db.users.enabled: enabled
         }
 
         await db.update(eclib.db.users.table_, [(eclib.db.users.name, "==", teamnum), (eclib.db.users.role, "==", eclib.roles.team)], row)
