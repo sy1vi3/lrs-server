@@ -1,0 +1,9 @@
+*__pycache__*
+build/*
+dist/*
+venv/*
+*.spec
+.idea/*
+*.db
+files/*
+cert/*
