@@ -109,64 +109,66 @@ async def save(payload, client, user, db):
     """
 
     if (extracted := await ech.safe_extract(client, payload, {eclib.db.skills.team_num: str, "scoresheet": dict, "comp": str})) is not None:
-        if extracted["comp"] == "viqc":
-            if (scoresheet := await ech.safe_extract(client, extracted["scoresheet"], {
-                eclib.db.skills.skills_type: int,
-                eclib.db.skills.red_balls: int,
-                eclib.db.skills.blue_balls: int,
-                eclib.db.skills.owned_goals: int,
-                eclib.db.skills.score: int,
-                eclib.db.skills.stop_time: int
-            })) is not None:
-                row = {
-                    eclib.db.skills.team_num: extracted[eclib.db.skills.team_num],
-                    eclib.db.skills.skills_type: scoresheet[eclib.db.skills.skills_type],
-                    eclib.db.skills.red_balls: scoresheet[eclib.db.skills.red_balls],
-                    eclib.db.skills.blue_balls: scoresheet[eclib.db.skills.blue_balls],
-                    eclib.db.skills.owned_goals: scoresheet[eclib.db.skills.owned_goals],
-                    eclib.db.skills.score: scoresheet[eclib.db.skills.score],
-                    eclib.db.skills.stop_time: scoresheet[eclib.db.skills.stop_time],
-                    eclib.db.skills.comp: extracted["comp"]
-                }
-                if (rowid := await ech.safe_extract(client, payload, {"rowid": int}, False)) is not None:  # update existing score
-                    await db.update(eclib.db.skills.table_, [("rowid", "==", rowid)], row)
-                else:  # save new score
-                    row[eclib.db.skills.timestamp] = ech.current_time()
-                    row[eclib.db.skills.referee] = user.name
-                    await db.insert(eclib.db.skills.table_, row)
-                await push_to_ctrl(db)
-                await push_to_team(ecusers.User.find_user(row[eclib.db.skills.team_num]), db)
-                await push_to_scores(db)
-        else:
-            if (scoresheet := await ech.safe_extract(client, extracted["scoresheet"], {
-                eclib.db.skills.skills_type: int,
-                eclib.db.skills.red_balls: int,
-                eclib.db.skills.blue_balls: int,
-                eclib.db.skills.owned_goals: str,
-                eclib.db.skills.score: int,
-                eclib.db.skills.stop_time: int
-            })) is not None:
-                row = {
-                    eclib.db.skills.team_num: extracted[eclib.db.skills.team_num],
-                    eclib.db.skills.skills_type: scoresheet[eclib.db.skills.skills_type],
-                    eclib.db.skills.red_balls: scoresheet[eclib.db.skills.red_balls],
-                    eclib.db.skills.blue_balls: scoresheet[eclib.db.skills.blue_balls],
-                    eclib.db.skills.owned_goals: scoresheet[eclib.db.skills.owned_goals],
-                    eclib.db.skills.score: scoresheet[eclib.db.skills.score],
-                    eclib.db.skills.stop_time: scoresheet[eclib.db.skills.stop_time],
-                    eclib.db.skills.comp: extracted["comp"]
-                }
-                if (rowid := await ech.safe_extract(client, payload, {"rowid": int}, False)) is not None:  # update existing score
-                    await db.update(eclib.db.skills.table_, [("rowid", "==", rowid)], row)
-                else:  # save new score
-                    row[eclib.db.skills.timestamp] = ech.current_time()
-                    row[eclib.db.skills.referee] = user.name
-                    await db.insert(eclib.db.skills.table_, row)
-                await push_to_ctrl(db)
-                await push_to_team(ecusers.User.find_user(row[eclib.db.skills.team_num]), db)
-                await push_to_scores(db)
-        await ecmodules.rankings.ranks_handler(db, "calc_rankings")
-        await ecmodules.stats.send_team_info(db, None)
+        team_user = ecusers.User.find_user(extracted[eclib.db.skills.team_num])
+        if team_user.event == user.event or user.event == "ALL":
+            if extracted["comp"] == "viqc":
+                if (scoresheet := await ech.safe_extract(client, extracted["scoresheet"], {
+                    eclib.db.skills.skills_type: int,
+                    eclib.db.skills.red_balls: int,
+                    eclib.db.skills.blue_balls: int,
+                    eclib.db.skills.owned_goals: int,
+                    eclib.db.skills.score: int,
+                    eclib.db.skills.stop_time: int
+                })) is not None:
+                    row = {
+                        eclib.db.skills.team_num: extracted[eclib.db.skills.team_num],
+                        eclib.db.skills.skills_type: scoresheet[eclib.db.skills.skills_type],
+                        eclib.db.skills.red_balls: scoresheet[eclib.db.skills.red_balls],
+                        eclib.db.skills.blue_balls: scoresheet[eclib.db.skills.blue_balls],
+                        eclib.db.skills.owned_goals: scoresheet[eclib.db.skills.owned_goals],
+                        eclib.db.skills.score: scoresheet[eclib.db.skills.score],
+                        eclib.db.skills.stop_time: scoresheet[eclib.db.skills.stop_time],
+                        eclib.db.skills.comp: extracted["comp"]
+                    }
+                    if (rowid := await ech.safe_extract(client, payload, {"rowid": int}, False)) is not None:  # update existing score
+                        await db.update(eclib.db.skills.table_, [("rowid", "==", rowid)], row)
+                    else:  # save new score
+                        row[eclib.db.skills.timestamp] = ech.current_time()
+                        row[eclib.db.skills.referee] = user.name
+                        await db.insert(eclib.db.skills.table_, row)
+                    await push_to_ctrl(db)
+                    await push_to_team(ecusers.User.find_user(row[eclib.db.skills.team_num]), db)
+                    await push_to_scores(db)
+            else:
+                if (scoresheet := await ech.safe_extract(client, extracted["scoresheet"], {
+                    eclib.db.skills.skills_type: int,
+                    eclib.db.skills.red_balls: int,
+                    eclib.db.skills.blue_balls: int,
+                    eclib.db.skills.owned_goals: str,
+                    eclib.db.skills.score: int,
+                    eclib.db.skills.stop_time: int
+                })) is not None:
+                    row = {
+                        eclib.db.skills.team_num: extracted[eclib.db.skills.team_num],
+                        eclib.db.skills.skills_type: scoresheet[eclib.db.skills.skills_type],
+                        eclib.db.skills.red_balls: scoresheet[eclib.db.skills.red_balls],
+                        eclib.db.skills.blue_balls: scoresheet[eclib.db.skills.blue_balls],
+                        eclib.db.skills.owned_goals: scoresheet[eclib.db.skills.owned_goals],
+                        eclib.db.skills.score: scoresheet[eclib.db.skills.score],
+                        eclib.db.skills.stop_time: scoresheet[eclib.db.skills.stop_time],
+                        eclib.db.skills.comp: extracted["comp"]
+                    }
+                    if (rowid := await ech.safe_extract(client, payload, {"rowid": int}, False)) is not None:  # update existing score
+                        await db.update(eclib.db.skills.table_, [("rowid", "==", rowid)], row)
+                    else:  # save new score
+                        row[eclib.db.skills.timestamp] = ech.current_time()
+                        row[eclib.db.skills.referee] = user.name
+                        await db.insert(eclib.db.skills.table_, row)
+                    await push_to_ctrl(db)
+                    await push_to_team(ecusers.User.find_user(row[eclib.db.skills.team_num]), db)
+                    await push_to_scores(db)
+            await ecmodules.rankings.ranks_handler(db, "calc_rankings")
+            await ecmodules.stats.send_team_info(db, None)
 
 
 async def get_scoresheet(payload, client, user, db, force_view=False):
