@@ -7,3 +7,4 @@ venv/*
 *.db
 files/*
 cert/*
+vs/*
