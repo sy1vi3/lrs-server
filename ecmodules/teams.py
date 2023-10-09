@@ -13,6 +13,8 @@ import requests
 import files.tokens as tokens
 import ecusers
 import ecsocket
+import ecmodules.skills
+import ecmodules.inspection
 
 async def get_teams(db):
     teams = dict()
@@ -103,26 +105,35 @@ async def load(db):
             eclib.db.teams.grade: grade
         }, eclib.db.teams.team_num)
         await db.upsert(eclib.db.inspection.table_, {
-            eclib.db.inspection.team_num: teamnumber
+            eclib.db.inspection.team_num: teamnumber,
+            eclib.db.inspection.result: eclib.db.inspection.result_not_started,
+            eclib.db.inspection.form_data: ""
         }, eclib.db.inspection.team_num)
         teams_loaded.append(teamnumber)
     usedCodes = []
     teamsfile_teams = []
     teams_need_code = []
     teams_need_remove = []
+    just_users_teams = []
 
     if fail_read == False:
 
         old_teams = await db.select(eclib.db.users.table_, [("role", "==", eclib.roles.team)])
+        also_old_teams = await db.select(eclib.db.teams.table_, [])
         for team in old_teams:
             teamsfile_teams.append(team['name'])
+            just_users_teams.append(team['name'])
             usedCodes.append(team['passcode'])
-        for team in teams_loaded:
+        for team in also_old_teams:
             if team not in teamsfile_teams:
+                teamsfile_teams.append(team['teamNum'])
+        for team in teams_loaded:
+            if team not in just_users_teams:
                 teams_need_code.append(team)
         for team in teamsfile_teams:
             if team not in teams_loaded:
                 teams_need_remove.append(team)
+
 
 
 
@@ -138,11 +149,20 @@ async def load(db):
             }
             await db.upsert(eclib.db.users.table_, row, eclib.db.users.name)
 
-    for team in teams_need_remove:
-        await db.delete(eclib.db.users.table_, [(eclib.db.users.name, "==", team)])
 
+    for team in teams_need_remove:
+        # print(team)
+        await db.delete(eclib.db.users.table_, [(eclib.db.users.name, "==", team)])
+        await db.delete(eclib.db.inspection.table_, [(eclib.db.inspection.team_num, "==", team)])
+        await db.delete(eclib.db.teams.table_, [(eclib.db.teams.team_num, "==", team)])
+        await db.delete(eclib.db.skills.table_, [(eclib.db.skills.team_num, "==", team)])
+
+    await ecmodules.skills.load_attempts(db)
+    await ecmodules.inspection.load_inspected_teams(db)
+    await ecmodules.inspection.push_to_ctrl(db)
     await ecusers.User.load_users(db)
     await get_teams(db)
+    print("LOADED TEAMS")
 
 async def handler(db, operation, payload):
     if operation == "edit":

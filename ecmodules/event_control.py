@@ -7,6 +7,7 @@ import ecsocket
 import eclib.db.chat
 import eclib.apis
 import eclib.roles
+import ecmodules.teams
 
 
 async def handler(client, user, operation, payload, db):
@@ -44,3 +45,6 @@ async def handler(client, user, operation, payload, db):
                 eclib.db.chat.message: message
             })
             await ecmodules.chat.push(db)
+    elif operation == "refresh_teams":
+        print("UPDATING TEAMS")
+        await ecmodules.teams.load(db)
