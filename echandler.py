@@ -77,7 +77,7 @@ async def echandle(client, user, api, operation, payload):
         elif api == eclib.apis.stats:
             await ecmodules.stats.send_team_info(db, client)
         elif api == eclib.apis.volunteers:
-            await ecmodules.volunteers.handler(db, operation, payload)
+            await ecmodules.volunteers.handler(db, operation, payload, user)
         elif api == eclib.apis.oauth:
             print(api)
         elif api == eclib.apis.meeting_ctrl:
@@ -116,12 +116,14 @@ async def handler(client, _path):
                     if (passcode := await ech.safe_extract(client, payload, {"accessCode": str})) is not None:
                         success = False
                         for user in ecusers.User.userlist:
-                            if passcode == user.passcode:
+                            if passcode == user.passcode and user.enabled:
                                 success = True
                                 print("[LOGIN] " + user.name)
                                 ecsocket.unregister(client)
                                 ecsocket.register(client, user)
                                 await echandle(client, user, eclib.apis.main, "get", None)
+                                if user.role == eclib.roles.event_partner:
+                                    await ecmodules.volunteers.get_volunteers()
                                 break
                         if not success:
                             await ecsocket.send_by_client({"api": eclib.apis.login, "failure": True}, client)

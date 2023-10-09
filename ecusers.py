@@ -58,7 +58,10 @@ class User:
             for row in reader:
                 name = row["Name"]
                 if name in existing_volunteers:
-                    cls.find_user(name).enabled = True
+                    user_obj = cls.find_user(name)
+                    user_obj.enabled = True
+                    user_obj.role = row["Role"]
+                    user_obj.passcode = row["Passcode"]
                 else:
                     u = User(row["Name"], row["Passcode"], row["Role"])
                     if u.role == eclib.roles.referee:
