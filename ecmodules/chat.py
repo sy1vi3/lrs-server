@@ -8,6 +8,9 @@ import echelpers as ech
 import eclib.roles
 import bleach
 from profanity_filter import ProfanityFilter
+import time
+import ecusers
+import re
 
 pf = ProfanityFilter()
 
@@ -95,6 +98,11 @@ async def post_message(payload, client, user, db):
         if user.chat_banned and user.role == eclib.roles.team:
             await ech.send_error(client, f"User is banned from chat. <br> Reason: {user.chat_ban_reason}")
             return
+        st = time.time()
+        if "@" in message:
+            for u in ecusers.User.userlist:
+                message = re.sub(f'@{u.name}', f'<span class="ping {u.role}">@{u.name}</span>', message, flags=re.IGNORECASE)
+        print(time.time()-st)
         await db.insert(eclib.db.chat.table_, {
             eclib.db.chat.timestamp: ech.current_time(),
             eclib.db.chat.author: user.name,

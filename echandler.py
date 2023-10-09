@@ -282,7 +282,6 @@ async def handler(client, _path):
                         for user in ecusers.User.userlist:
                             if passcode == user.passcode and user.enabled:
                                 success = True
-                                # ech.log("[LOGIN] " + user.name)
                                 ecsocket.unregister(client)
                                 ecsocket.register(client, user)
                                 await echandle(client, user, eclib.apis.main, "get", None)
@@ -290,6 +289,7 @@ async def handler(client, _path):
                                 msg = {"api": "Event Data", "operation": "event_info", "event": user.event, "teams": new_teams}
                                 await ecsocket.send_by_client(msg, client)
                                 await ecmodules.home.handler(client, "get", payload)
+
                                 if user.role == eclib.roles.event_partner:
                                     await ecmodules.volunteers.get_volunteers(db)
                                     await ecmodules.teams.get_teams(db)

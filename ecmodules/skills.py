@@ -1,7 +1,7 @@
 """
 Handle Skills-related tasks
 """
-
+import echandler
 import eclib.db.rankings
 import eclib.db.skills
 import eclib.db.teams
@@ -12,6 +12,7 @@ import ecmodules.queue
 import ecmodules.rankings
 import echelpers as ech
 import ecmodules.chat
+import time
 
 
 async def push_to_team(team, db, client=None):
@@ -80,6 +81,7 @@ async def push_to_scores(db, client=None):
     db_result = await db.select(eclib.db.skills.table_, [])
 
     results = list()
+    team_results = list()
     used_times = set()
     for row in db_result:
         team_num = row[eclib.db.skills.team_num]
@@ -102,7 +104,6 @@ async def push_to_scores(db, client=None):
                 file_name = "null"
         else:
             file_name = "null"
-
         results.append({
             "rowid": row["rowid"],
             eclib.db.skills.timestamp: ech.timestamp_to_readable(timestamp),
@@ -111,12 +112,28 @@ async def push_to_scores(db, client=None):
             eclib.db.skills.score: row[eclib.db.skills.score],
             "filename": file_name
         })
+        team_results.append({
+            "rowid": row["rowid"],
+            eclib.db.skills.timestamp: ech.timestamp_to_readable(timestamp),
+            eclib.db.skills.team_num: team_num,
+            eclib.db.skills.skills_type: type,
+            eclib.db.skills.score: row[eclib.db.skills.score],
+            "filename": "null"
+        })
+
     results.reverse()
+    team_results.reverse()
     msg = {"api": eclib.apis.skills_scores, "operation": "post", "scores": results}
+    team_msg = {"api": eclib.apis.skills_scores, "operation": "post", "scores": team_results}
     if client is not None:  # `get` request
-        await ecsocket.send_by_client(msg, client)
+        u = echandler.find_user_from_client(client)
+        if u.has_access(eclib.apis.production):
+            await ecsocket.send_by_client(msg, client)
+        else:
+            await ecsocket.send_by_client(team_msg, client)
     else:  # save operation
-        await ecsocket.send_by_access(msg, eclib.apis.skills_scores)
+        await ecsocket.send_by_access(msg, eclib.apis.production)
+        await ecsocket.send_by_non_access(team_msg, eclib.apis.production)
 
 
 async def save(payload, client, user, db):

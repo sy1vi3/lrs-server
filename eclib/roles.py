@@ -28,7 +28,7 @@ RO_ = {
     event_partner: (ecapis.skills_scores, ecapis.rankings, ecapis.stats, ecapis.queue, ecapis.help),
     referee: (ecapis.skills_scores, ecapis.rankings, ecapis.stats, ecapis.queue, ecapis.event_room, ecapis.home, ecapis.help),
     staff: (ecapis.inspection_ctrl, ecapis.skills_ctrl, ecapis.skills_scores, ecapis.rankings, ecapis.stats, ecapis.queue, ecapis.help),
-    observer: (ecapis.skills_scores, ecapis.rankings, ecapis.stats, ecapis.queue, ecapis.home, ecapis.help),
+    observer: (ecapis.skills_scores, ecapis.rankings, ecapis.stats, ecapis.queue, ecapis.home, ecapis.help, ecapis.chat),
     livestream: (ecapis.livestream, ecapis.rankings, ecapis.stats, ecapis.queue),
     output: (ecapis.livestream, ecapis.rankings, ecapis.stats, ecapis.queue, ecapis.output),
     producer: (ecapis.skills_scores, ecapis.rankings, ecapis.stats, ecapis.queue, ecapis.home, ecapis.help)

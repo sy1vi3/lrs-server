@@ -92,6 +92,7 @@ class User:
         ep_in_users = False
         livestream_in_users = False
         output_in_users = False
+        guest_in_users = False
         used_codes = list()
 
         for u in all_users:
@@ -101,7 +102,22 @@ class User:
                 livestream_in_users = True
             if u['role'] == eclib.roles.output:
                 output_in_users = True
+            if u['role'] == eclib.roles.observer:
+                guest_in_users = True
             used_codes.append(u['passcode'])
+        if guest_in_users == False:
+            new_code = ''.join(random.choice(string.ascii_uppercase + string.digits + string.ascii_lowercase) for _ in range(13))
+            while new_code in used_codes:
+                new_code = ''.join(random.choice(string.ascii_uppercase + string.digits + string.ascii_lowercase) for _ in range(13))
+            row = {
+                eclib.db.users.name: "Guest",
+                eclib.db.users.passcode: new_code,
+                eclib.db.users.role: eclib.roles.observer,
+                eclib.db.users.enabled: 1,
+                eclib.db.users.event: "ALL"
+            }
+            u = User("Guest", new_code, eclib.roles.observer, "ALL")
+            await db.insert(eclib.db.users.table_, row)
         if ep_in_users == False:
             new_code = ''.join(random.choice(string.ascii_uppercase + string.digits + string.ascii_lowercase) for _ in range(13))
             while new_code in used_codes:

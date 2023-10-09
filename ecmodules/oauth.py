@@ -237,5 +237,10 @@ async def handler(payload, operation, client, db):
                                     teams_codes.append([team, row['passcode']])
                         for team in teams_codes:
                             account_data[team[0]] = team[1]
+                    if len(account_data) == 0:
+                        for u in ecusers.User.userlist:
+                            if u.role == eclib.roles.observer:
+                                account_data[u.name] = u.passcode
+
                     msg = {"api": "OAuth", "operation": "teams_codes", "codes": account_data}
                     await ecsocket.send_by_client(msg, client)

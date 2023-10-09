@@ -71,6 +71,19 @@ async def send_by_access(message, *apis):
         if not set(apis).isdisjoint(u.get_apis()):
             await send_by_user(message, u)
 
+async def send_by_non_access(message, *apis):
+    """
+    Send a payload to all users who can access specified API(s)
+
+    :param message: payload
+    :type message: dict[str, Any]
+    :param apis: API(s) in question
+    :type apis: str
+    """
+    for u in ecusers.User.userlist:
+        if set(apis).isdisjoint(u.get_apis()):
+            await send_by_user(message, u)
+
 
 async def send_by_role(message, *roles):
     """
