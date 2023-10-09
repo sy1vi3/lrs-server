@@ -75,41 +75,6 @@ async def push_update(db, client=None, user=None):
         await ecsocket.send_by_access(teams_msg, eclib.apis.inspection, eclib.apis.skills)
         await ecsocket.send_by_access(stream_msg, eclib.apis.livestream)
 
-    # label1 = ""
-    # label2 = ""
-    # upcoming = ""
-    # upcoming_count = 0
-    # for item in stream_queue:
-    #     if item[eclib.db.queue.referee] == "Nathan" and item[eclib.db.queue.purpose] > eclib.db.queue.purpose_inspection:
-    #         label1 = "Team " + item[eclib.db.queue.team_num] + "&ensp;<i class='fas fa-"
-    #         if item[eclib.db.queue.purpose] == eclib.db.queue.purpose_driving_skills:
-    #             label1 += "gamepad"
-    #         elif item[eclib.db.queue.purpose] == eclib.db.queue.purpose_programming_skills:
-    #             label1 += "laptop-code"
-    #         label1 += "'></i>"
-    #     elif item[eclib.db.queue.referee] == "Gene" and item[eclib.db.queue.purpose] > eclib.db.queue.purpose_inspection:
-    #         label2 = "Team " + item[eclib.db.queue.team_num] + "&ensp;<i class='fas fa-"
-    #         if item[eclib.db.queue.purpose] == eclib.db.queue.purpose_driving_skills:
-    #             label2 += "gamepad"
-    #         elif item[eclib.db.queue.purpose] == eclib.db.queue.purpose_programming_skills:
-    #             label2 += "laptop-code"
-    #         label2 += "'></i>"
-    #     elif upcoming_count < 2 and item[eclib.db.queue.purpose] > eclib.db.queue.purpose_inspection:
-    #         if upcoming_count == 1:
-    #             upcoming += "&emsp;&bull;&emsp;"
-    #         upcoming += item[eclib.db.queue.team_num] + "&ensp;<i class='fas fa-"
-    #         if item[eclib.db.queue.purpose] == eclib.db.queue.purpose_driving_skills:
-    #             upcoming += "gamepad"
-    #         elif item[eclib.db.queue.purpose] == eclib.db.queue.purpose_programming_skills:
-    #             upcoming += "laptop-code"
-    #         upcoming += "'></i>"
-    #         upcoming_count += 1
-    # if upcoming_count == 0:
-    #     upcoming = "No teams in queue for Skills"
-    # else:
-    #     upcoming = "Up Next:&emsp;" + upcoming
-    # await ecsocket.send_by_access(json.dumps({"api": apis.livestream, "labels": [label1, label2], "upcoming": upcoming}), apis.meeting_ctrl)
-
 
 async def team_queue(purpose, client, team, db):
     """
