@@ -56,7 +56,7 @@ async def post_result(event, csv_rows_to_add, div):
 
     # ech.log(f"Updated Scores, Response code {r.status_code}")
 
-async def calc_rankings(db):
+async def calc_rankings(db, pushScores=False):
     start_time = time.time()
     divs = await get_divs(db)
     div_ranks = {}

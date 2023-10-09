@@ -22,6 +22,7 @@ import ecmodules.output
 import ecmodules.home
 import jwt
 import files.tokens as tokens
+import time
 
 db = None
 
@@ -96,7 +97,7 @@ async def echandle(client, user, api, operation, payload):
                 jwt_data = {
                     "context": {
                         "user": {
-                            "avatar": "https://console.liveremoteskills.org/img/referee.png",
+                            "avatar": "https://console.liveremoteskills.org/img/avatar/referee.png",
                             "name": f"{user.name} - Ref",
                             "email": "",
                             "id": "abcd:a1b2c3-d4e5f6-0abc1-23de-abcdef01fedcba"
@@ -105,7 +106,8 @@ async def echandle(client, user, api, operation, payload):
                     "aud": "jitsi",
                     "iss": "eventconsole",
                     "sub": "https://connect.liveremoteskills.org/",
-                    "room": "*"
+                    "room": f"room{user.room}",
+                    "exp": round(time.time())+36000
                 }
                 token = jwt.encode(jwt_data, tokens.jitsi_secret, algorithm='HS256')
                 msg = {"api": eclib.apis.event_room, "operation": "give_ref_login", "room": user.room, "pass": ecusers.User.room_codes[user.room], "jwt": token}
@@ -204,7 +206,7 @@ async def handler(client, _path):
                                     jwt_data = {
                                         "context": {
                                             "user": {
-                                                "avatar": "https://console.liveremoteskills.org/img/referee.png",
+                                                "avatar": "https://console.liveremoteskills.org/img/avatar/referee.png",
                                                 "name": f"{user.name} - Ref",
                                                 "email": "",
                                                 "id": "abcd:a1b2c3-d4e5f6-0abc1-23de-abcdef01fedcba"
@@ -213,7 +215,8 @@ async def handler(client, _path):
                                         "aud": "jitsi",
                                         "iss": "eventconsole",
                                         "sub": "https://connect.liveremoteskills.org/",
-                                        "room": "*"
+                                        "room": f"room{user.room}",
+                                        "exp": round(time.time())+36000
                                     }
                                     token = jwt.encode(jwt_data, tokens.jitsi_secret, algorithm='HS256')
                                     msg = {"api": eclib.apis.event_room, "operation": "give_ref_login", "room": user.room, "pass": ecusers.User.room_codes[user.room], "jwt": token}
