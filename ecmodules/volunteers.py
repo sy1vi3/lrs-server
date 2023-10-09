@@ -1,5 +1,6 @@
 import csv
 import eclib.db.teams
+import eclib.db.users
 import eclib.db.inspection
 import echelpers as ech
 import random
@@ -10,41 +11,83 @@ import ecusers
 import ecsocket
 
 
-async def get_volunteers():
-    volunteers = {}
-    with open('files/volunteers.csv', newline='') as csvfile:
-        reader = csv.DictReader(csvfile, quoting=csv.QUOTE_ALL)
-        for row in reader:
-            volunteers[row["Name"]] = {"Role": row["Role"], "Passcode": row["Passcode"]}
+async def get_volunteers(db):
+    volunteers = dict()
+    volunteer_users = await db.select(eclib.db.users.table_, [(eclib.db.users.role, "!=", eclib.roles.team)])
+    for user in volunteer_users:
+        volunteers[user["name"]] = {"Role": user["role"], "Passcode": user["passcode"]}
     msg = {"api": "Volunteers", "operation": "update", "volunteers": volunteers}
     await ecsocket.send_by_access(msg, eclib.apis.event_ctrl)
 
+async def delete(db, user, data):
+    username = data
+    if username != user.name:
+        await db.delete(eclib.db.users.table_, [(eclib.db.users.name, "==", username)])
+        await get_volunteers(db)
+        await ecusers.User.load_users(db)
 
-
-async def update(data, user):
-    volunteers = []
-    for key in data:
-        if data[key]['Passcode'] == "changeme":
+async def add(db, data):
+    all_users = await db.select(eclib.db.users.table_, [])
+    if data['Passcode'] == "changeme":
+        used_codes = list()
+        for u in all_users:
+            used_codes.append(u['passcode'])
+        new_code = ''.join(random.choice(string.ascii_uppercase + string.digits + string.ascii_lowercase) for _ in range(13))
+        while new_code in used_codes:
             new_code = ''.join(random.choice(string.ascii_uppercase + string.digits + string.ascii_lowercase) for _ in range(13))
-            with open('files/volunteers.csv', 'r', newline='') as csvfile, open('files/teams.csv', 'r', newline='') as csvfile2:
-                while new_code in csvfile.read() or new_code in csvfile2.read():
-                    new_code = ''.join(random.choice(string.ascii_uppercase + string.digits + string.ascii_lowercase) for _ in range(13))
-            data[key]['Passcode'] = new_code
-        volunteers.append([key, data[key]['Role'], data[key]['Passcode']])
-    if user.name not in str(volunteers):
-        await get_volunteers()
+        data['Passcode'] = new_code
+
+    row = {
+        eclib.db.users.name: data['Name'],
+        eclib.db.users.role: data['Role'],
+        eclib.db.users.passcode: data['Passcode']
+    }
+
+    used_names = list()
+    for u in all_users:
+        used_names.append(u['name'])
+    if data['Name'] not in used_names:
+        await db.insert(eclib.db.users.table_, row)
     else:
-        with open('files/volunteers.csv', 'w', newline='') as csvfile:
-            writer = csv.writer(csvfile, quoting=csv.QUOTE_ALL)
-            writer.writerow(["Name", "Passcode", "Role"])
-            for u in volunteers:
-                writer.writerow([u[0], u[2], u[1]])
-        await get_volunteers()
-    ecusers.User.load_volunteers("files/volunteers.csv")
+        print("USERADD FAILED: DUPLICATE NAME")
+    await get_volunteers(db)
+    await ecusers.User.load_users(db)
+
+async def edit(db, data):
+    all_users = await db.select(eclib.db.users.table_, [])
+    if data['Passcode'] == "changeme":
+        used_codes = list()
+        for u in all_users:
+            used_codes.append(u['passcode'])
+        new_code = ''.join(random.choice(string.ascii_uppercase + string.digits + string.ascii_lowercase) for _ in range(13))
+        while new_code in used_codes:
+            new_code = ''.join(random.choice(string.ascii_uppercase + string.digits + string.ascii_lowercase) for _ in range(13))
+        data['Passcode'] = new_code
+
+    used_names = list()
+    for u in all_users:
+        used_names.append(u['name'])
+    if data['Name'] not in used_names or (data['Name'] == data['OldName']):
+        row = {
+            eclib.db.users.name: data['Name'],
+            eclib.db.users.role: data['Role'],
+            eclib.db.users.passcode: data['Passcode']
+        }
+        await db.update(eclib.db.users.table_, [(eclib.db.users.name, "==", data['OldName'])], row)
+    else:
+        print("USEREDIT FAILED: DUPLICATE NAME")
+    await get_volunteers(db)
+    await ecusers.User.load_users(db)
 
 async def handler(db, operation, payload, user):
     if operation == "get_volunteers":
-        await get_volunteers()
-    elif operation == "add_del":
+        await get_volunteers(db)
+    elif operation == "delete":
         volunteers = payload['user_info']
-        await update(volunteers, user)
+        await delete(db, user, volunteers)
+    elif operation == "add":
+        volunteers = payload['user_info']
+        await add(db, volunteers)
+    elif operation == "edit":
+        volunteers = payload['user_info']
+        await edit(db, volunteers)

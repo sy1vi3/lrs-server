@@ -5,6 +5,9 @@ Data about each user and their permissions.
 import eclib.apis
 import csv
 import eclib.roles
+import asyncio
+import eclib.db.users
+
 
 
 class User:
@@ -66,64 +69,44 @@ class User:
             self.apis_ro = tuple()
 
     @classmethod
-    def load_users(cls, db):
-        with open('files/volunteers.csv', newline='') as csvfile:
-            reader = csv.DictReader(csvfile, quoting=csv.QUOTE_ALL)
-            for row in reader:
-                await db.insert(eclib.db.users.table_, row)
-                print(row)
+    async def load_users(cls, db):
         all_users = await db.select(eclib.db.users.table_, [])
 
+        ep_in_users = False
+        used_codes = list()
 
-    @classmethod
-    def load_volunteers(cls, file):
-        """
-        Load volunteer user accounts from CSV file
+        for u in all_users:
+            if u['role'] == eclib.roles.event_partner:
+                ep_in_users = True
+            used_codes.append(u['passcode'])
+        if ep_in_users == False:
+            new_code = ''.join(random.choice(string.ascii_uppercase + string.digits + string.ascii_lowercase) for _ in range(13))
+            while new_code in usedCodes:
+                new_code = ''.join(random.choice(string.ascii_uppercase + string.digits + string.ascii_lowercase) for _ in range(13))
+            row = {
+                eclib.db.users.name: "Event Partner",
+                eclib.db.users.passcode: new_code,
+                eclib.db.users.role: eclib.roles.event_partner
+            }
+            print(f"NEW USER: EVENT PARTNER: {new_code}")
+            await db.insert(eclib.db.users.table_, row)
 
-        :param file: path to CSV file
-        :type file: str
-        """
-        existing_volunteers = list()
+        existing_users = list()
         for u in cls.userlist:
-            if u.role != eclib.roles.team:
-                u.__enable(False)
-                existing_volunteers.append(u.name)
-        with open(file, newline='') as csvfile:
-            reader = csv.DictReader(csvfile, quoting=csv.QUOTE_ALL)
-            for row in reader:
-                name = row["Name"]
-                if name in existing_volunteers:
-                    u = cls.find_user(name)
-                    u.role = row["Role"]
-                    u.passcode = row["Passcode"]
-                    u.__enable()
-                else:
-                    u = User(row["Name"], row["Passcode"], row["Role"])
-                    if u.role == eclib.roles.referee:
-                        cls.rooms.append(u)
-                        u.room = len(cls.rooms)
-
-    @classmethod
-    def load_teams(cls, file):
-        """
-        Load team user accounts from CSV file
-
-        :param file: path to CSV file
-        :type file: str
-        """
-        existing_teams = list()
-        for u in cls.userlist:
-            if u.role == eclib.roles.team:
-                u.__enable(False)
-                existing_teams.append(u.name)
-        with open(file, newline='') as csvfile:
-            reader = csv.DictReader(csvfile, quoting=csv.QUOTE_ALL)
-            for row in reader:
-                name = row["Team Number"]
-                if name in existing_teams:
-                    cls.find_user(name).__enable()
-                else:
-                    _ = User(name, row["Passcode"], eclib.roles.team)
+            u.__enable(False)
+            existing_users.append(u.name)
+        for user in all_users:
+            name = user["name"]
+            if name in existing_users:
+                u = cls.find_user(name)
+                u.role = user["role"]
+                u.passcode = user["passcode"]
+                u.__enable()
+            else:
+                u = User(user["name"], user["passcode"], user["role"])
+                if u.role == eclib.roles.referee:
+                    cls.rooms.append(u)
+                    u.room = len(cls.rooms)
 
     def get_apis(self):
         """

@@ -4,11 +4,11 @@ Constants for 'users' table
 
 table_ = "users"
 
-name = "teamNum"
+name = "name"
 
-role = "teamName"
+role = "role"
 
-passcode = "organization"
+passcode = "passcode"
 
 
 create_ = "CREATE TABLE IF NOT EXISTS " + table_ + " ( " \

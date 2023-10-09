@@ -3,6 +3,8 @@ Responsible for interfacing with team database table
 """
 import csv
 import eclib.db.teams
+import eclib.db.users
+import eclib.roles
 import eclib.db.inspection
 import echelpers as ech
 import random
@@ -12,7 +14,7 @@ import files.tokens as tokens
 import ecusers
 
 
-async def load(db, file):
+async def load(db):
     """
     Load team profiles from registration CSV file
 
@@ -101,35 +103,32 @@ async def load(db, file):
     teams_need_remove = []
 
     if fail_read == False:
-        with open('files/teams.csv', newline='') as teamsfile:
-            teamsreader = csv.DictReader(teamsfile, quoting=csv.QUOTE_ALL)
-            for row in teamsreader:
-                teamsfile_teams.append(row['Team Number'])
-                usedCodes.append(row['Passcode'])
-            for team in teams_loaded:
-                if team not in teamsfile_teams:
-                    teams_need_code.append(team)
-            for team in teamsfile_teams:
-                if team not in teams_loaded:
-                    teams_need_remove.append(team)
-        with open('files/teams.csv', 'a', newline='') as teamsfile:
-            teamswriter = csv.writer(teamsfile, quoting=csv.QUOTE_ALL)
-            for team in teams_need_code:
-                new_code = ''.join(random.choice(string.ascii_uppercase + string.digits + string.ascii_lowercase) for _ in range(13))
-                while new_code in usedCodes:
-                    new_code = ''.join(random.choice(string.ascii_uppercase + string.digits + string.ascii_lowercase) for _ in range(13))
-                teamswriter.writerow([team, new_code])
 
-        if len(teams_need_remove) > 0:
-            new_team_codes = []
-            with open('files/teams.csv', 'r', newline='') as teamsfile:
-                teamsreader = csv.DictReader(teamsfile, quoting=csv.QUOTE_ALL)
-                for row in teamsreader:
-                    if row['Team Number'] not in teams_need_remove:
-                        new_team_codes.append([row['Team Number'], row['Passcode']])
-            with open('files/teams.csv', 'w', newline='') as teamsfile:
-                teamswriter = csv.writer(teamsfile, quoting=csv.QUOTE_ALL)
-                teamswriter.writerow(['Team Number', 'Passcode'])
-                for row in new_team_codes:
-                    teamswriter.writerow(row)
-    ecusers.User.load_teams("files/teams.csv")
+        old_teams = await db.select(eclib.db.users.table_, [("role", "==", eclib.roles.team)])
+        for team in old_teams:
+            teamsfile_teams.append(team['name'])
+            usedCodes.append(team['passcode'])
+        for team in teams_loaded:
+            if team not in teamsfile_teams:
+                teams_need_code.append(team)
+        for team in teamsfile_teams:
+            if team not in teams_loaded:
+                teams_need_remove.append(team)
+
+
+
+        for team in teams_need_code:
+            new_code = ''.join(random.choice(string.ascii_uppercase + string.digits + string.ascii_lowercase) for _ in range(13))
+            while new_code in usedCodes:
+                new_code = ''.join(random.choice(string.ascii_uppercase + string.digits + string.ascii_lowercase) for _ in range(13))
+            row = {
+                eclib.db.users.name: team,
+                eclib.db.users.passcode: new_code,
+                eclib.db.users.role: eclib.roles.team
+            }
+            await db.upsert(eclib.db.users.table_, row, eclib.db.users.name)
+
+    for team in teams_need_remove:
+        await db.delete(eclib.db.users.table_, [(eclib.db.users.name, "==", team)])
+
+    await ecusers.User.load_users(db)

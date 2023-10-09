@@ -123,7 +123,7 @@ async def handler(client, _path):
                                 ecsocket.register(client, user)
                                 await echandle(client, user, eclib.apis.main, "get", None)
                                 if user.role == eclib.roles.event_partner:
-                                    await ecmodules.volunteers.get_volunteers()
+                                    await ecmodules.volunteers.get_volunteers(db)
                                 break
                         if not success:
                             await ecsocket.send_by_client({"api": eclib.apis.login, "failure": True}, client)
