@@ -13,6 +13,7 @@ import ecmodules.inspection
 import ecmodules.queue
 import ecmodules.skills
 import ecmodules.tech_support
+import ecmodules.rankings
 
 db = None
 
@@ -50,7 +51,8 @@ async def echandle(client, user, api, operation, payload):
     global db
     if (user.has_access(api) and operation.startswith("get")) or (user.has_perms(api) and payload is not None):
         if payload is not None:
-            print(user.name + ": " + str(payload))
+            # print(user.name + ": " + str(payload))
+            pass
         if api == eclib.apis.chat:
             await ecmodules.chat.handler(client, user, operation, payload, db)
         elif api == eclib.apis.inspection:
@@ -59,6 +61,8 @@ async def echandle(client, user, api, operation, payload):
             await ecmodules.inspection.ctrl_handler(client, user, operation, payload, db)
         elif api == eclib.apis.skills:
             await ecmodules.skills.team_handler(client, user, operation, payload, db)
+        elif api == eclib.apis.rankings:
+            await ecmodules.rankings.ranks_handler(db, operation)
         elif api == eclib.apis.skills_ctrl:
             await ecmodules.skills.ctrl_handler(client, user, operation, payload, db)
         elif api == eclib.apis.skills_scores:

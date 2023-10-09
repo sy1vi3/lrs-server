@@ -26,6 +26,8 @@ event_ctrl = "Event Control"
 
 tech_support = "Tech Support"
 
+rankings = "Rankings"
+
 tabs_ = (
     inspection,
     inspection_ctrl,
@@ -34,5 +36,6 @@ tabs_ = (
     skills_scores,
     meeting_ctrl,
     event_ctrl,
-    tech_support
+    tech_support,
+    rankings
 )

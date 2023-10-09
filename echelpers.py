@@ -18,7 +18,7 @@ SKILLS_ATTEMPTS = dict()
 async def send_error(client, error_msg="An error occurred. Please try again."):
     """
     Send an error message to a client
-    
+
     :param client: target client
     :type client: websockets.WebSocketCommonProtocol
     :param error_msg: error text to display

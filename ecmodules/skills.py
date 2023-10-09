@@ -104,33 +104,64 @@ async def save(payload, client, user, db):
     :param db: database object
     :type db: ecdatabase.Database
     """
-    if (extracted := await ech.safe_extract(client, payload, {eclib.db.skills.team_num: str, "scoresheet": dict})) is not None:
-        if (scoresheet := await ech.safe_extract(client, extracted["scoresheet"], {
-            eclib.db.skills.skills_type: int,
-            eclib.db.skills.red_balls: int,
-            eclib.db.skills.blue_balls: int,
-            eclib.db.skills.owned_goals: str,
-            eclib.db.skills.score: int,
-            eclib.db.skills.stop_time: int
-        })) is not None:
-            row = {
-                eclib.db.skills.team_num: extracted[eclib.db.skills.team_num],
-                eclib.db.skills.skills_type: scoresheet[eclib.db.skills.skills_type],
-                eclib.db.skills.red_balls: scoresheet[eclib.db.skills.red_balls],
-                eclib.db.skills.blue_balls: scoresheet[eclib.db.skills.blue_balls],
-                eclib.db.skills.owned_goals: scoresheet[eclib.db.skills.owned_goals],
-                eclib.db.skills.score: scoresheet[eclib.db.skills.score],
-                eclib.db.skills.stop_time: scoresheet[eclib.db.skills.stop_time]
-            }
-            if (rowid := await ech.safe_extract(client, payload, {"rowid": int}, False)) is not None:  # update existing score
-                await db.update(eclib.db.skills.table_, [("rowid", "==", rowid)], row)
-            else:  # save new score
-                row[eclib.db.skills.timestamp] = ech.current_time()
-                row[eclib.db.skills.referee] = user.name
-                await db.insert(eclib.db.skills.table_, row)
-            await push_to_ctrl(db)
-            await push_to_team(ecusers.User.find_user(row[eclib.db.skills.team_num]), db)
-            await push_to_scores(db)
+
+    if (extracted := await ech.safe_extract(client, payload, {eclib.db.skills.team_num: str, "scoresheet": dict, "comp": str})) is not None:
+        if extracted["comp"] == "viqc":
+            if (scoresheet := await ech.safe_extract(client, extracted["scoresheet"], {
+                eclib.db.skills.skills_type: int,
+                eclib.db.skills.red_balls: int,
+                eclib.db.skills.blue_balls: int,
+                eclib.db.skills.owned_goals: int,
+                eclib.db.skills.score: int,
+                eclib.db.skills.stop_time: int
+            })) is not None:
+                row = {
+                    eclib.db.skills.team_num: extracted[eclib.db.skills.team_num],
+                    eclib.db.skills.skills_type: scoresheet[eclib.db.skills.skills_type],
+                    eclib.db.skills.red_balls: scoresheet[eclib.db.skills.red_balls],
+                    eclib.db.skills.blue_balls: scoresheet[eclib.db.skills.blue_balls],
+                    eclib.db.skills.owned_goals: scoresheet[eclib.db.skills.owned_goals],
+                    eclib.db.skills.score: scoresheet[eclib.db.skills.score],
+                    eclib.db.skills.stop_time: scoresheet[eclib.db.skills.stop_time],
+                    eclib.db.skills.comp: extracted["comp"]
+                }
+                if (rowid := await ech.safe_extract(client, payload, {"rowid": int}, False)) is not None:  # update existing score
+                    await db.update(eclib.db.skills.table_, [("rowid", "==", rowid)], row)
+                else:  # save new score
+                    row[eclib.db.skills.timestamp] = ech.current_time()
+                    row[eclib.db.skills.referee] = user.name
+                    await db.insert(eclib.db.skills.table_, row)
+                await push_to_ctrl(db)
+                await push_to_team(ecusers.User.find_user(row[eclib.db.skills.team_num]), db)
+                await push_to_scores(db)
+        else:
+            if (scoresheet := await ech.safe_extract(client, extracted["scoresheet"], {
+                eclib.db.skills.skills_type: int,
+                eclib.db.skills.red_balls: int,
+                eclib.db.skills.blue_balls: int,
+                eclib.db.skills.owned_goals: str,
+                eclib.db.skills.score: int,
+                eclib.db.skills.stop_time: int
+            })) is not None:
+                row = {
+                    eclib.db.skills.team_num: extracted[eclib.db.skills.team_num],
+                    eclib.db.skills.skills_type: scoresheet[eclib.db.skills.skills_type],
+                    eclib.db.skills.red_balls: scoresheet[eclib.db.skills.red_balls],
+                    eclib.db.skills.blue_balls: scoresheet[eclib.db.skills.blue_balls],
+                    eclib.db.skills.owned_goals: scoresheet[eclib.db.skills.owned_goals],
+                    eclib.db.skills.score: scoresheet[eclib.db.skills.score],
+                    eclib.db.skills.stop_time: scoresheet[eclib.db.skills.stop_time],
+                    eclib.db.skills.comp: extracted["comp"]
+                }
+                if (rowid := await ech.safe_extract(client, payload, {"rowid": int}, False)) is not None:  # update existing score
+                    await db.update(eclib.db.skills.table_, [("rowid", "==", rowid)], row)
+                else:  # save new score
+                    row[eclib.db.skills.timestamp] = ech.current_time()
+                    row[eclib.db.skills.referee] = user.name
+                    await db.insert(eclib.db.skills.table_, row)
+                await push_to_ctrl(db)
+                await push_to_team(ecusers.User.find_user(row[eclib.db.skills.team_num]), db)
+                await push_to_scores(db)
 
 
 async def get_scoresheet(payload, client, user, db, force_view=False):
@@ -189,6 +220,14 @@ async def team_handler(client, user, operation, payload, db):
         await ecmodules.queue.team_unqueue(user, db)
 
 
+async def findTeamComp(db, payload, client):
+    if (team_num := await ech.safe_extract(client, payload, {"teamNum": str})) is not None:
+        db_result = await db.select(eclib.db.teams.table_, [("teamNum", "==", team_num)])
+        if len(db_result) > 0:
+            program = db_result[0]['comp']
+            msg = {"api": eclib.apis.skills_ctrl, "operation": "setType", "teamNum": team_num, "comp": program}
+            await ecsocket.send_by_client(msg, client)
+
 async def ctrl_handler(client, user, operation, payload, db):
     """
     Handler for *Skills Control* API
@@ -235,6 +274,8 @@ async def ctrl_handler(client, user, operation, payload, db):
             await push_to_ctrl(db)
             await push_to_team(ecusers.User.find_user(team_num), db)
             await push_to_scores(db)
+    elif operation == "get_comp":
+        await findTeamComp(db, payload, client)
 
 
 async def scores_handler(client, user, operation, payload, db):

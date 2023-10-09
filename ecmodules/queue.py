@@ -167,8 +167,8 @@ async def ctrl_invite(payload, client, user, db):
             await ecsocket.send_by_access({"api": eclib.apis.meeting_ctrl, "room": user.room, "password": password}, eclib.apis.meeting_ctrl)
             team_msg = {"api": eclib.apis.main, "modal":
                         "<p>You are invited to join the video call:</p>" +
-                        "<p><a href=\"https://connect.18x18az.org/room" + str(user.room) + "\" target=\"_blank\">" +
-                        "https://connect.18x18az.org/room" + str(user.room) + "</a></p>" +
+                        "<p><a href=\"https://connect.liveremoteskills.org/room" + str(user.room) + "\" target=\"_blank\">" +
+                        "https://connect.liveremoteskills.org/room" + str(user.room) + "</a></p>" +
                         "<p>Password: <big><strong><tt>" + password + "</tt></strong></big></p>"
                         }
             await ecsocket.send_by_user(team_msg, ecusers.User.find_user(team_num))

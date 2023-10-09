@@ -24,6 +24,8 @@ stop_time = "stopTime"
 
 referee = "referee"
 
+comp = "comp"
+
 create_ = "CREATE TABLE IF NOT EXISTS " + table_ + " ( " \
           + timestamp + " INTEGER NOT NULL, " \
           + team_num + " TEXT NOT NULL, " \
@@ -33,5 +35,6 @@ create_ = "CREATE TABLE IF NOT EXISTS " + table_ + " ( " \
           + owned_goals + " TEXT NOT NULL, " \
           + score + " INTEGER NOT NULL, " \
           + stop_time + " INTEGER NOT NULL, " \
-          + referee + " TEXT NOT NULL " \
+          + referee + " TEXT NOT NULL, " \
+          + comp + " TEXT NOT NULL " \
           + ");"
