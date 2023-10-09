@@ -24,7 +24,6 @@ if __name__ == "__main__":
     db = ecdatabase.Database(DB_FILE)
     ecusers.User.load_volunteers(VOLUNTEERS_FILE)
     print("Loaded volunteers")
-    ecusers.User.load_teams(TEAMS_FILE)
     print("Loaded teams")
     echandler.db = db
     loop = asyncio.get_event_loop()

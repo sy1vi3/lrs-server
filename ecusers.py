@@ -48,13 +48,22 @@ class User:
         :param file: path to CSV file
         :type file: str
         """
+        existing_volunteers = list()
+        for u in cls.userlist:
+            if u.role != eclib.roles.team:
+                u.enabled = False
+                existing_volunteers.append(u.name)
         with open(file, newline='') as csvfile:
             reader = csv.DictReader(csvfile, quoting=csv.QUOTE_ALL)
             for row in reader:
-                u = User(row["Name"], row["Passcode"], row["Role"])
-                if u.role == eclib.roles.referee:
-                    cls.rooms.append(u)
-                    u.room = len(cls.rooms)
+                name = row["Name"]
+                if name in existing_volunteers:
+                    cls.find_user(name).enabled = True
+                else:
+                    u = User(row["Name"], row["Passcode"], row["Role"])
+                    if u.role == eclib.roles.referee:
+                        cls.rooms.append(u)
+                        u.room = len(cls.rooms)
 
     @classmethod
     def load_teams(cls, file):
@@ -74,7 +83,7 @@ class User:
             for row in reader:
                 name = row["Team Number"]
                 if name in existing_teams:
-                    self.find_user(name).enabled = True
+                    cls.find_user(name).enabled = True
                 else:
                     _ = User(name, row["Passcode"], eclib.roles.team)
 

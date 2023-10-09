@@ -32,6 +32,8 @@ stats = "Stats"
 
 oauth = "OAuth"
 
+volunteers = "Volunteers"
+
 tabs_ = (
     inspection,
     inspection_ctrl,
