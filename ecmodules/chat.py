@@ -35,6 +35,15 @@ async def push(db, new_message=True, client=None):
         elif author_type == eclib.db.chat.author_type_announcement:
             author_type = "announcement"
             author = ""
+        elif author_type == "sticker":
+            author_type = "sticker"
+            author = ""
+        elif author_type == "score":
+            author_type = "score"
+            author = ""
+        elif author_type == "system":
+            author_type = "system"
+            author = ""
         else:
             author_type = "team"
         chat.append({

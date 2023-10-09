@@ -16,6 +16,8 @@ import ecsocket
 import ecmodules.skills
 import ecmodules.inspection
 import json
+from colorhash import ColorHash
+import ast
 
 async def get_teams(db):
     teams = dict()
@@ -113,6 +115,13 @@ async def load(db):
             eclib.db.teams.comp: comp,
             eclib.db.teams.grade: grade
         }, eclib.db.teams.team_num)
+        team_row = await db.select(eclib.db.teams.table_, [(eclib.db.teams.team_num, "==", teamnumber)])
+        sticker_url = team_row[0]['mysticker']
+        if sticker_url is None:
+            row = {eclib.db.teams.sticker_url: f"https://ui-avatars.com/api/?name={'+'.join(teamnumber)}&background={str(ColorHash(teamnumber).hex)[1:]}&color=fff"}
+            await db.update(eclib.db.teams.table_, [(eclib.db.teams.team_num, "==", teamnumber)], row)
+        else:
+            print(teamnumber, "Already has a sticker")
         await db.upsert(eclib.db.inspection.table_, {
             eclib.db.inspection.team_num: teamnumber,
             eclib.db.inspection.form_data: ""

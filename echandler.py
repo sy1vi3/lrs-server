@@ -20,6 +20,8 @@ import ecmodules.volunteers
 import ecmodules.event_config
 import ecmodules.output
 import ecmodules.home
+import ecmodules.moderation
+import ecmodules.settings
 import jwt
 import files.tokens as tokens
 import time
@@ -81,7 +83,7 @@ async def echandle(client, user, api, operation, payload):
         elif api == eclib.apis.event_ctrl:
             await ecmodules.event_control.handler(client, user, operation, payload, db)
         elif api == eclib.apis.stats:
-            await ecmodules.stats.send_team_info(db, client)
+            await ecmodules.stats.handler(db, client, operation, payload)
         elif api == eclib.apis.volunteers:
             await ecmodules.volunteers.handler(db, operation, payload, user)
         elif api == eclib.apis.oauth:
@@ -91,7 +93,7 @@ async def echandle(client, user, api, operation, payload):
         elif api == eclib.apis.queue and operation == "get":
             await ecmodules.queue.push_update(db, client, user)
         elif api == eclib.apis.settings:
-            print(api)
+            await ecmodules.settings.handler(db, operation, payload, client, user)
         elif api == eclib.apis.event_room:
             if user.role == eclib.roles.referee:
                 jwt_data = {
@@ -141,6 +143,29 @@ async def echandle(client, user, api, operation, payload):
             await ecmodules.output.ctrl_handler(client, operation, payload)
         elif api == eclib.apis.home:
             await ecmodules.home.handler(client, operation, payload)
+        elif api == eclib.apis.jwt:
+            if operation == "get_jwt_from_livestream":
+                room = payload['room']
+                jwt_data = {
+                    "context": {
+                        "user": {
+                            "avatar": "https://console.liveremoteskills.org/img/avatar/livestream.png",
+                            "name": f"Livestream",
+                            "email": "",
+                            "id": "abcd:a1b2c3-d4e5f6-0abc1-23de-abcdef01fedcba"
+                        }
+                    },
+                    "aud": "jitsi",
+                    "iss": "eventconsole",
+                    "sub": "https://connect.liveremoteskills.org/",
+                    "room": room,
+                    "exp": round(time.time())+36000
+                }
+                token = jwt.encode(jwt_data, tokens.jitsi_secret, algorithm='HS256')
+                msg = {"api": eclib.apis.jwt, "operation": "return_jwt", "jwt": token}
+                await ecsocket.send_by_client(msg, client)
+        elif api == eclib.apis.moderation:
+            await ecmodules.moderation.handler(db, client, user, operation, payload)
         else:
             await ech.send_error(client)
     elif api == eclib.apis.main and operation == "get":
@@ -246,6 +271,11 @@ async def handler(client, _path):
                                         if r.role == eclib.roles.output:
                                             output_passcode = r.passcode
                                     msg = {"api": eclib.apis.output, "operation": "setOutputCode", "auth": output_passcode}
+                                    await ecsocket.send_by_client(msg, client)
+                                if user.role == eclib.roles.team:
+                                    team_row = await db.select(eclib.db.teams.table_, [(eclib.db.teams.team_num, "==", user.name)])
+                                    sticker_url = team_row[0]['mysticker']
+                                    msg = {"api": eclib.apis.settings, "operation": "set_my_sticker", "url": sticker_url}
                                     await ecsocket.send_by_client(msg, client)
                                 break
                         if not success:

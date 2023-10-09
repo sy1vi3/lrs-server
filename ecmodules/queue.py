@@ -152,6 +152,59 @@ async def team_unqueue(team, db):
     await push_update(db)
     await rm_from_active(team.name)
 
+async def invite_team(db, user, client, team_num, intent):
+    password = (''.join(random.choice(string.digits) for _ in range(4)))
+    await ecsocket.send_by_access({"api": eclib.apis.meeting_ctrl, "operation": "set_code", "room": user.room, "password": password}, eclib.apis.meeting_ctrl)
+    team_msg = {"api": eclib.apis.main, "modal":
+                "<p>You are invited to join the video call:</p>" +
+                "<p><a href=\"https://connect.liveremoteskills.org/room" + str(user.room) + "\" target=\"_blank\">" +
+                "https://connect.liveremoteskills.org/room" + str(user.room) + "</a></p>" +
+                "<p>Password: <big><strong><tt>" + password + "</tt></strong></big></p>",
+                "room": user.room, "password": password
+                }
+    ecusers.User.room_codes[user.room] = password
+    await ecsocket.send_by_user(team_msg, ecusers.User.find_user(team_num))
+    await push_update(db)
+    team_data_result = await db.select(eclib.db.teams.table_, [(eclib.db.teams.team_num, "==", team_num)])
+    team_data = team_data_result[0]
+    location = team_data['location']
+    team_name = team_data['teamName']
+    info = {
+        "team": team_num,
+        "location": location,
+        "name": team_name
+    }
+    if user.room in ecusers.User.event_room_data:
+        if ecusers.User.event_room_data[user.room]['active'] == False:
+            ecusers.User.event_room_data[user.room] = {"passcode": password, "info": info, "active": True, "time": ech.current_time(), "intent": intent}
+            msg = {"api": eclib.apis.livestream, "operation": "update", "room": user.room, "data": info}
+            await ecsocket.send_by_role(msg, eclib.roles.livestream)
+            msg = {"api": eclib.apis.event_ctrl, "operation": "room_code_update", "rooms": ecusers.User.room_codes}
+            await ecsocket.send_by_role(msg, eclib.roles.event_partner)
+            msg = {"api": eclib.apis.event_room, "operation": "ref_room_code_update", "password": password}
+            await ecsocket.send_by_user(msg, user)
+            room_data = ecusers.User.event_room_data
+            msg = {"api": eclib.apis.output, "operation": "setAliveRooms", "data": room_data}
+            await ecsocket.send_by_role(msg, eclib.roles.output)
+            await ecmodules.output.reload_active()
+        else:
+            ecusers.User.event_room_data[user.room] = {"passcode": password, "info": info, "active": True, "time": ecusers.User.event_room_data[user.room]['time'], "intent": intent}
+            msg = {"api": eclib.apis.event_ctrl, "operation": "room_code_update", "rooms": ecusers.User.room_codes}
+            await ecsocket.send_by_role(msg, eclib.roles.event_partner)
+            msg = {"api": eclib.apis.event_room, "operation": "ref_room_code_update", "password": password}
+            await ecsocket.send_by_user(msg, user)
+    else:
+        ecusers.User.event_room_data[user.room] = {"passcode": password, "info": info, "active": True, "time": ech.current_time(), "intent": intent}
+        msg = {"api": eclib.apis.livestream, "operation": "update", "room": user.room, "data": info}
+        await ecsocket.send_by_role(msg, eclib.roles.livestream)
+        msg = {"api": eclib.apis.event_ctrl, "operation": "room_code_update", "rooms": ecusers.User.room_codes}
+        await ecsocket.send_by_role(msg, eclib.roles.event_partner)
+        msg = {"api": eclib.apis.event_room, "operation": "ref_room_code_update", "password": password}
+        await ecsocket.send_by_user(msg, user)
+        room_data = ecusers.User.event_room_data
+        msg = {"api": eclib.apis.output, "operation": "setAliveRooms", "data": room_data}
+        await ecsocket.send_by_role(msg, eclib.roles.output)
+        await ecmodules.output.reload_active()
 
 async def ctrl_invite(payload, client, user, db):
     """
@@ -176,70 +229,23 @@ async def ctrl_invite(payload, client, user, db):
                 await ech.send_error(client, "You can only invite one team at a time!")
                 return False
         db_result = await db.select(eclib.db.queue.table_, [(eclib.db.queue.team_num, "==", team_num), (eclib.db.queue.time_removed, "==", 0)])
-        if len(db_result) == 0:
-            await ech.send_error(client)
-            return False
-        if db_result[0][eclib.db.queue.referee] in ("", user.name):
-            await db.update(eclib.db.queue.table_, [(eclib.db.queue.team_num, "==", team_num), (eclib.db.queue.time_removed, "==", 0)], {
-                eclib.db.queue.time_invited: ech.current_time(),
-                eclib.db.queue.referee: user.name
-            })
-            password = (''.join(random.choice(string.digits) for _ in range(4)))
-            await ecsocket.send_by_access({"api": eclib.apis.meeting_ctrl, "operation": "set_code", "room": user.room, "password": password}, eclib.apis.meeting_ctrl)
-            team_msg = {"api": eclib.apis.main, "modal":
-                        "<p>You are invited to join the video call:</p>" +
-                        "<p><a href=\"https://connect.liveremoteskills.org/room" + str(user.room) + "\" target=\"_blank\">" +
-                        "https://connect.liveremoteskills.org/room" + str(user.room) + "</a></p>" +
-                        "<p>Password: <big><strong><tt>" + password + "</tt></strong></big></p>",
-                        "room": user.room, "password": password
-                        }
-            ecusers.User.room_codes[user.room] = password
-            await ecsocket.send_by_user(team_msg, ecusers.User.find_user(team_num))
-            await push_update(db)
-            team_data_result = await db.select(eclib.db.teams.table_, [(eclib.db.teams.team_num, "==", team_num)])
-            team_data = team_data_result[0]
-            location = team_data['location']
-            team_name = team_data['teamName']
-            if (intent := await ech.safe_extract(client, payload, {'intent': str})) is not None:
-                pass
-            else:
-                intent = "Unknown"
-            info = {
-                "team": team_num,
-                "location": location,
-                "name": team_name
-            }
-            if user.room in ecusers.User.event_room_data:
-                if ecusers.User.event_room_data[user.room]['active'] == False:
-                    ecusers.User.event_room_data[user.room] = {"passcode": password, "info": info, "active": True, "time": ech.current_time(), "intent": intent}
-                    msg = {"api": eclib.apis.livestream, "operation": "update", "room": user.room, "data": info}
-                    await ecsocket.send_by_role(msg, eclib.roles.livestream)
-                    msg = {"api": eclib.apis.event_ctrl, "operation": "room_code_update", "rooms": ecusers.User.room_codes}
-                    await ecsocket.send_by_role(msg, eclib.roles.event_partner)
-                    msg = {"api": eclib.apis.event_room, "operation": "ref_room_code_update", "password": password}
-                    await ecsocket.send_by_user(msg, user)
-                    room_data = ecusers.User.event_room_data
-                    msg = {"api": eclib.apis.output, "operation": "setAliveRooms", "data": room_data}
-                    await ecsocket.send_by_role(msg, eclib.roles.output)
-                    await ecmodules.output.reload_active()
-                else:
-                    ecusers.User.event_room_data[user.room] = {"passcode": password, "info": info, "active": True, "time": ecusers.User.event_room_data[user.room]['time'], "intent": intent}
-                    msg = {"api": eclib.apis.event_ctrl, "operation": "room_code_update", "rooms": ecusers.User.room_codes}
-                    await ecsocket.send_by_role(msg, eclib.roles.event_partner)
-                    msg = {"api": eclib.apis.event_room, "operation": "ref_room_code_update", "password": password}
-                    await ecsocket.send_by_user(msg, user)
-            else:
-                ecusers.User.event_room_data[user.room] = {"passcode": password, "info": info, "active": True, "time": ech.current_time(), "intent": intent}
-                msg = {"api": eclib.apis.livestream, "operation": "update", "room": user.room, "data": info}
-                await ecsocket.send_by_role(msg, eclib.roles.livestream)
-                msg = {"api": eclib.apis.event_ctrl, "operation": "room_code_update", "rooms": ecusers.User.room_codes}
-                await ecsocket.send_by_role(msg, eclib.roles.event_partner)
-                msg = {"api": eclib.apis.event_room, "operation": "ref_room_code_update", "password": password}
-                await ecsocket.send_by_user(msg, user)
-                room_data = ecusers.User.event_room_data
-                msg = {"api": eclib.apis.output, "operation": "setAliveRooms", "data": room_data}
-                await ecsocket.send_by_role(msg, eclib.roles.output)
-                await ecmodules.output.reload_active()
+        if (intent := await ech.safe_extract(client, payload, {'intent': str})) is not None:
+            pass
+        else:
+            intent = "Unknown"
+        if intent != "General":
+            if len(db_result) == 0:
+                await ech.send_error(client)
+                return False
+            if db_result[0][eclib.db.queue.referee] in ("", user.name):
+                await db.update(eclib.db.queue.table_, [(eclib.db.queue.team_num, "==", team_num), (eclib.db.queue.time_removed, "==", 0)], {
+                    eclib.db.queue.time_invited: ech.current_time(),
+                    eclib.db.queue.referee: user.name
+                })
+                await invite_team(db, user, client, team_num, intent)
+                return True
+        else:
+            await invite_team(db, user, client, team_num, intent)
             return True
     return False
 

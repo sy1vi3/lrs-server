@@ -11,6 +11,7 @@ import ecusers
 import ecmodules.queue
 import ecmodules.rankings
 import echelpers as ech
+import ecmodules.chat
 
 
 async def push_to_team(team, db, client=None):
@@ -112,6 +113,9 @@ async def save(payload, client, user, db):
         team_user = ecusers.User.find_user(extracted[eclib.db.skills.team_num])
         if team_user.event == user.event or user.event == "ALL":
             if extracted["comp"] == "viqc":
+                type_of_run = ""
+                total_score = ""
+                team_that_ran = ""
                 if (scoresheet := await ech.safe_extract(client, extracted["scoresheet"], {
                     eclib.db.skills.skills_type: int,
                     eclib.db.skills.red_balls: int,
@@ -136,6 +140,10 @@ async def save(payload, client, user, db):
                         row[eclib.db.skills.timestamp] = ech.current_time()
                         row[eclib.db.skills.referee] = user.name
                         await db.insert(eclib.db.skills.table_, row)
+                    type_of_run = scoresheet[eclib.db.skills.skills_type]
+                    total_score = scoresheet[eclib.db.skills.score]
+                    team_that_ran = extracted[eclib.db.skills.team_num]
+
                     await push_to_ctrl(db)
                     await push_to_team(ecusers.User.find_user(row[eclib.db.skills.team_num]), db)
                     await push_to_scores(db)
@@ -164,9 +172,26 @@ async def save(payload, client, user, db):
                         row[eclib.db.skills.timestamp] = ech.current_time()
                         row[eclib.db.skills.referee] = user.name
                         await db.insert(eclib.db.skills.table_, row)
+                    type_of_run = scoresheet[eclib.db.skills.skills_type]
+                    total_score = scoresheet[eclib.db.skills.score]
+                    team_that_ran = extracted[eclib.db.skills.team_num]
                     await push_to_ctrl(db)
                     await push_to_team(ecusers.User.find_user(row[eclib.db.skills.team_num]), db)
                     await push_to_scores(db)
+            if int(type_of_run) == 1:
+                type_of_run = "driver"
+            elif int(type_of_run) == 2:
+                type_of_run = "programming"
+            else:
+                type_of_run = "[HAHA TARAN'S CODE BROKE]"
+            message = f"{team_that_ran} scored {total_score} points in {type_of_run} skills"
+            await db.insert(eclib.db.chat.table_, {
+                eclib.db.chat.timestamp: ech.current_time(),
+                eclib.db.chat.author: user.name,
+                eclib.db.chat.author_type: "score",
+                eclib.db.chat.message: message
+            })
+            await ecmodules.chat.push(db)
             await ecmodules.rankings.ranks_handler(db, "calc_rankings")
             await ecmodules.stats.send_team_info(db, None)
 

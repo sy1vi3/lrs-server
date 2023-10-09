@@ -9,9 +9,9 @@ import eclib.db
 from discord_webhook import DiscordWebhook
 import files.tokens as tokens
 
-TEAM_CHAT_ENABLED = False
-INSPECTION_OPEN = False
-SKILLS_OPEN = False
+TEAM_CHAT_ENABLED = True
+INSPECTION_OPEN = True
+SKILLS_OPEN = True
 POST_TO_RE = False
 
 INSPECTED_TEAMS = list()
