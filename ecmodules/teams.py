@@ -9,6 +9,7 @@ import random
 import string
 import requests
 import files.tokens as tokens
+import ecusers
 
 
 async def load(db, file):
@@ -94,36 +95,6 @@ async def load(db, file):
             eclib.db.inspection.team_num: teamnumber
         }, eclib.db.inspection.team_num)
         teams_loaded.append(teamnumber)
-    # with open(file, newline='') as csvfile:
-    #     teams_loaded = []
-    #     reader = csv.DictReader(csvfile, quoting=csv.QUOTE_ALL)
-    #     for row in reader:
-    #         programs = row['Sku']
-    #         if "VRC" in programs or "VEXU" in programs:
-    #             comp = "VRC"
-    #         elif "VIQC" in programs:
-    #             comp = "VIQC"
-    #         else:
-    #             comp = "VRC"
-    #         try:
-    #             div = row["Div"]
-    #         except:
-    #             if comp == "VRC":
-    #                 div = "VRC Division 1"
-    #             elif comp == "VIQC":
-    #                 div = "VIQC Division 1"
-    #         await db.upsert(eclib.db.teams.table_, {
-    #             eclib.db.teams.team_num: row["Team"],
-    #             eclib.db.teams.team_name: row["Name"],
-    #             eclib.db.teams.organization: row["Organization"],
-    #             eclib.db.teams.location: row["City"] + ", " + row["Region"] + ", " + row["Country"],
-    #             eclib.db.teams.div: div,
-    #             eclib.db.teams.comp: comp
-    #         }, eclib.db.teams.team_num)
-    #         await db.upsert(eclib.db.inspection.table_, {
-    #             eclib.db.inspection.team_num: row["Team"]
-    #         }, eclib.db.inspection.team_num)
-    #         teams_loaded.append(row['Team'])
     usedCodes = []
     teamsfile_teams = []
     teams_need_code = []
@@ -144,9 +115,9 @@ async def load(db, file):
         with open('files/teams.csv', 'a', newline='') as teamsfile:
             teamswriter = csv.writer(teamsfile, quoting=csv.QUOTE_ALL)
             for team in teams_need_code:
-                new_code = ''.join(random.choice(string.ascii_uppercase + string.digits + string.ascii_lowercase + "!@#$%^&*()_-=+<>/?;:[]{}|") for _ in range(13))
+                new_code = ''.join(random.choice(string.ascii_uppercase + string.digits + string.ascii_lowercase) for _ in range(13))
                 while new_code in usedCodes:
-                    new_code = ''.join(random.choice(string.ascii_uppercase + string.digits + string.ascii_lowercase + "!@#$%^&*()_-=+<>/?;:[]{}|") for _ in range(13))
+                    new_code = ''.join(random.choice(string.ascii_uppercase + string.digits + string.ascii_lowercase) for _ in range(13))
                 teamswriter.writerow([team, new_code])
 
         if len(teams_need_remove) > 0:
@@ -161,3 +132,4 @@ async def load(db, file):
                 teamswriter.writerow(['Team Number', 'Passcode'])
                 for row in new_team_codes:
                     teamswriter.writerow(row)
+    ecusers.User.load_teams("files/teams.csv")

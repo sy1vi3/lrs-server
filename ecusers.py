@@ -28,6 +28,7 @@ class User:
         self.name = name
         self.passcode = passcode
         self.role = role
+        self.enabled = True
         try:
             self.apis_rw = eclib.roles.RW_[role]
         except KeyError:
@@ -63,10 +64,19 @@ class User:
         :param file: path to CSV file
         :type file: str
         """
+        existing_teams = list()
+        for u in cls.userlist:
+            if u.role == eclib.roles.team:
+                u.enabled = False
+                existing_teams.append(u.name)
         with open(file, newline='') as csvfile:
             reader = csv.DictReader(csvfile, quoting=csv.QUOTE_ALL)
             for row in reader:
-                _ = User(row["Team Number"], row["Passcode"], eclib.roles.team)
+                name = row["Team Number"]
+                if name in existing_teams:
+                    self.find_user(name).enabled = True
+                else:
+                    _ = User(name, row["Passcode"], eclib.roles.team)
 
     def get_apis(self):
         """
@@ -75,7 +85,7 @@ class User:
         :return: APIs a user is allowed to access
         :rtype: tuple[str]
         """
-        return self.apis_rw + self.apis_ro
+        return self.apis_rw + self.apis_ro if self.enabled else tuple()
 
     def get_tablist(self):
         """
@@ -84,7 +94,7 @@ class User:
         :return: list of tabs
         :rtype: list[str]
         """
-        return [api for api in self.get_apis() if api in eclib.apis.tabs_]
+        return [api for api in self.get_apis() if api in eclib.apis.tabs_] if self.enabled else list()
 
     def has_access(self, *apis):
         """
@@ -96,9 +106,10 @@ class User:
         :return: Whether user is allowed to interact with the API
         :rtype: bool
         """
-        for api in apis:
-            if api in self.get_apis():
-                return True
+        if self.enabled:
+            for api in apis:
+                if api in self.get_apis():
+                    return True
         return False
 
     def has_perms(self, *apis):
@@ -111,9 +122,10 @@ class User:
         :return: Whether user is allowed to interact with the API
         :rtype: bool
         """
-        for api in apis:
-            if api in self.apis_rw:
-                return True
+        if self.enabled:
+            for api in apis:
+                if api in self.apis_rw:
+                    return True
         return False
 
     @classmethod

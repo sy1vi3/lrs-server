@@ -30,6 +30,8 @@ rankings = "Rankings"
 
 stats = "Stats"
 
+oauth = "OAuth"
+
 tabs_ = (
     inspection,
     inspection_ctrl,

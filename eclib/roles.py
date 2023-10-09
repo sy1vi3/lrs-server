@@ -24,7 +24,7 @@ RO_ = {
     event_partner: (ecapis.skills_scores, ecapis.rankings, ecapis.stats),
     referee: (ecapis.skills_scores, ecapis.rankings, ecapis.stats),
     staff: (ecapis.inspection_ctrl, ecapis.skills_ctrl, ecapis.skills_scores, ecapis.rankings, ecapis.stats),
-    observer: (ecapis.chat, ecapis.inspection_ctrl, ecapis.skills_ctrl, ecapis.skills_scores, ecapis.rankings, ecapis.stats),
+    observer: (ecapis.skills_scores, ecapis.rankings, ecapis.stats),
     livestream: (ecapis.livestream, ecapis.rankings, ecapis.stats)
 }
 

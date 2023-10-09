@@ -75,7 +75,7 @@ async def echandle(client, user, api, operation, payload):
             await ecmodules.event_control.handler(client, user, operation, payload, db)
         elif api == eclib.apis.stats:
             await ecmodules.stats.send_team_info(db, client)
-        elif api == "OAuth":
+        elif api == eclib.apis.oauth:
             print(api)
         elif api == eclib.apis.meeting_ctrl:
             if operation == "init":
@@ -123,7 +123,7 @@ async def handler(client, _path):
                         if not success:
                             await ecsocket.send_by_client({"api": eclib.apis.login, "failure": True}, client)
                 elif extracted["api"] == "OAuth":
-                    await ecmodules.oauth.handler(payload, extracted['operation'])
+                    await ecmodules.oauth.handler(payload, extracted['operation'], client)
                 else:
                     if (user := find_user_from_client(client)) is not None:
                         await echandle(client, user, extracted["api"], extracted["operation"], payload)
