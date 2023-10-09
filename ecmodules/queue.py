@@ -59,7 +59,7 @@ async def push_update(db, client=None, user=None):
                 if item[eclib.db.queue.referee] == referee.name:
                     labels[i] = pickle
                     break
-        elif len(upcoming) < 2 and item[eclib.db.queue.purpose] > eclib.db.queue.purpose_inspection:
+        elif len(upcoming) < 3 and item[eclib.db.queue.purpose] > eclib.db.queue.purpose_inspection:
             upcoming.append(pickle)
     stream_msg = {"api": eclib.apis.livestream, "labels": labels, "upcoming": upcoming}
 
