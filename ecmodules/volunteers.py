@@ -32,13 +32,23 @@ async def update(data):
                     new_code = ''.join(random.choice(string.ascii_uppercase + string.digits + string.ascii_lowercase) for _ in range(13))
             data[key]['Passcode'] = new_code
         volunteers.append([key, data[key]['Role'], data[key]['Passcode']])
-    with open('files/volunteers.csv', 'w', newline='') as csvfile:
-        writer = csv.writer(csvfile, quoting=csv.QUOTE_ALL)
-        writer.writerow(["Name", "Passcode", "Role"])
-        for u in volunteers:
-            writer.writerow([u[0], u[2], u[1]])
-    await get_volunteers()
-    ecusers.User.load_volunteers("files/volunteers.csv")
+    num_eps_new =  str(volunteers).count("Event Partner")
+    with open('files/volunteers.csv', 'r', newline='') as csvfile:
+        contents = csvfile.read()
+        num_eps_old = contents.count("Event Partner")
+    print(num_eps_new)
+    print(num_eps_old)
+    if num_eps_new < num_eps_old:
+        print("Tried to remove an Event Partner")
+        await get_volunteers()
+    else:
+        with open('files/volunteers.csv', 'w', newline='') as csvfile:
+            writer = csv.writer(csvfile, quoting=csv.QUOTE_ALL)
+            writer.writerow(["Name", "Passcode", "Role"])
+            for u in volunteers:
+                writer.writerow([u[0], u[2], u[1]])
+        await get_volunteers()
+        ecusers.User.load_volunteers("files/volunteers.csv")
 
 async def handler(db, operation, payload):
     print(operation)
