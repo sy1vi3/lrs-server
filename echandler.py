@@ -15,6 +15,7 @@ import ecmodules.skills
 import ecmodules.tech_support
 import ecmodules.rankings
 import ecmodules.stats
+import ecmodules.oauth
 
 db = None
 
@@ -74,6 +75,8 @@ async def echandle(client, user, api, operation, payload):
             await ecmodules.event_control.handler(client, user, operation, payload, db)
         elif api == eclib.apis.stats:
             await ecmodules.stats.send_team_info(db, client)
+        elif api == "OAuth":
+            print(api)
         elif api == eclib.apis.meeting_ctrl:
             if operation == "init":
                 await ecsocket.send_by_client({"api": eclib.apis.meeting_ctrl, "rooms": len(ecusers.User.rooms)}, client)
@@ -97,6 +100,7 @@ async def handler(client, _path):
     :type client: websockets.WebSocketCommonProtocol
     :type _path: str
     """
+    global db
     try:
         async for message in client:
             try:
@@ -118,6 +122,8 @@ async def handler(client, _path):
                                 break
                         if not success:
                             await ecsocket.send_by_client({"api": eclib.apis.login, "failure": True}, client)
+                elif extracted["api"] == "OAuth":
+                    await ecmodules.oauth.handler(payload, extracted['operation'])
                 else:
                     if (user := find_user_from_client(client)) is not None:
                         await echandle(client, user, extracted["api"], extracted["operation"], payload)
