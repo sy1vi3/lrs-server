@@ -127,7 +127,7 @@ async def handler(client, _path):
                                 break
                         if not success:
                             await ecsocket.send_by_client({"api": eclib.apis.login, "failure": True}, client)
-                elif extracted["api"] == "OAuth":
+                elif extracted["api"] == eclib.apis.oauth:
                     await ecmodules.oauth.handler(payload, extracted['operation'], client)
                 else:
                     if (user := find_user_from_client(client)) is not None:

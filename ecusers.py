@@ -25,20 +25,45 @@ class User:
         return x is not self
 
     def __init__(self, name, passcode, role):
+        """
+        Create user object
+
+        :param name: username
+        :type name: str
+        :param passcode: access code
+        :type passcode: str
+        :param role: user role
+        :type role: str
+        :return: user object
+        :rtype: User
+        """
         self.name = name
         self.passcode = passcode
         self.role = role
-        self.enabled = True
-        try:
-            self.apis_rw = eclib.roles.RW_[role]
-        except KeyError:
-            self.apis_rw = tuple()
-        try:
-            self.apis_ro = eclib.roles.RO_[role]
-        except KeyError:
-            self.apis_ro = tuple()
+        self.__enable()
         self.clients = list()
         self.userlist.add(self)
+    
+    def __enable(self, enabled=True):
+        """
+        Enables or disables user
+
+        :param enabled: whether user is enabled
+        :type enabled: bool
+        """
+        self.enabled = enabled
+        if enabled:
+            try:
+                self.apis_rw = eclib.roles.RW_[self.role]
+            except KeyError:
+                self.apis_rw = tuple()
+            try:
+                self.apis_ro = eclib.roles.RO_[self.role]
+            except KeyError:
+                self.apis_ro = tuple()
+        else:
+            self.apis_rw = tuple()
+            self.apis_ro = tuple()
 
     @classmethod
     def load_volunteers(cls, file):
@@ -51,17 +76,17 @@ class User:
         existing_volunteers = list()
         for u in cls.userlist:
             if u.role != eclib.roles.team:
-                u.enabled = False
+                u.__enable(False)
                 existing_volunteers.append(u.name)
         with open(file, newline='') as csvfile:
             reader = csv.DictReader(csvfile, quoting=csv.QUOTE_ALL)
             for row in reader:
                 name = row["Name"]
                 if name in existing_volunteers:
-                    user_obj = cls.find_user(name)
-                    user_obj.enabled = True
-                    user_obj.role = row["Role"]
-                    user_obj.passcode = row["Passcode"]
+                    u = cls.find_user(name)
+                    u.role = row["Role"]
+                    u.passcode = row["Passcode"]
+                    u.__enable()
                 else:
                     u = User(row["Name"], row["Passcode"], row["Role"])
                     if u.role == eclib.roles.referee:
@@ -79,14 +104,14 @@ class User:
         existing_teams = list()
         for u in cls.userlist:
             if u.role == eclib.roles.team:
-                u.enabled = False
+                u.__enable(False)
                 existing_teams.append(u.name)
         with open(file, newline='') as csvfile:
             reader = csv.DictReader(csvfile, quoting=csv.QUOTE_ALL)
             for row in reader:
                 name = row["Team Number"]
                 if name in existing_teams:
-                    cls.find_user(name).enabled = True
+                    cls.find_user(name).__enable()
                 else:
                     _ = User(name, row["Passcode"], eclib.roles.team)
 
@@ -97,8 +122,8 @@ class User:
         :return: APIs a user is allowed to access
         :rtype: tuple[str]
         """
-        return self.apis_rw + self.apis_ro if self.enabled else tuple()
-
+        return self.apis_rw + self.apis_ro
+    
     def get_tablist(self):
         """
         Get list of tabs that should be visible to the user (APIs that should be presented as tabs)
@@ -106,7 +131,7 @@ class User:
         :return: list of tabs
         :rtype: list[str]
         """
-        return [api for api in self.get_apis() if api in eclib.apis.tabs_] if self.enabled else list()
+        return [api for api in self.get_apis() if api in eclib.apis.tabs_]
 
     def has_access(self, *apis):
         """
@@ -118,10 +143,9 @@ class User:
         :return: Whether user is allowed to interact with the API
         :rtype: bool
         """
-        if self.enabled:
-            for api in apis:
-                if api in self.get_apis():
-                    return True
+        for api in apis:
+            if api in self.get_apis():
+                return True
         return False
 
     def has_perms(self, *apis):
@@ -134,10 +158,9 @@ class User:
         :return: Whether user is allowed to interact with the API
         :rtype: bool
         """
-        if self.enabled:
-            for api in apis:
-                if api in self.apis_rw:
-                    return True
+        for api in apis:
+            if api in self.apis_rw:
+                return True
         return False
 
     @classmethod
