@@ -7,9 +7,7 @@ import eclib.apis
 import echelpers as ech
 import eclib.roles
 import bleach
-from profanity_filter import ProfanityFilter
 
-pf = ProfanityFilter()
 
 async def push(db, new_message=True, client=None):
     """
@@ -75,7 +73,6 @@ async def post_message(payload, client, user, db):
             author_type = eclib.db.chat.author_type_team
         message = bleach.clean(message, tags=list(), attributes=dict())
         message = " ".join(message.split())
-        message = pf.censor(message)
         if len(message) == 0:
             await ech.send_error(client, "Invalid message")
             return
@@ -86,8 +83,7 @@ async def post_message(payload, client, user, db):
             eclib.db.chat.message: message
         })
         await push(db)
-        msg = {"api": "Sound", "operation": "new_msg", "author": user.name}
-        await ecsocket.send_by_access(msg, eclib.apis.chat)
+
 
 async def handler(client, user, operation, payload, db):
     """

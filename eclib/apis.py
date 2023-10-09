@@ -28,8 +28,6 @@ tech_support = "Tech Support"
 
 rankings = "Rankings"
 
-stats = "Stats"
-
 tabs_ = (
     inspection,
     inspection_ctrl,
@@ -39,6 +37,5 @@ tabs_ = (
     meeting_ctrl,
     event_ctrl,
     tech_support,
-    rankings,
-    stats
+    rankings
 )
