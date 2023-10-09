@@ -22,6 +22,7 @@ class User:
     room_codes = dict()
     events = list()
     event_room_data = dict()
+    live_room = 0
 
     # Allow instances of User to be stored in sets
     def __hash__(self):
@@ -142,6 +143,7 @@ class User:
         for u in cls.userlist:
             u.enable(False)
             existing_users.append(u.name)
+        cls.rooms = list()
         for user in all_users:
             name = user["name"]
             if name in existing_users:
@@ -150,10 +152,14 @@ class User:
                 u.role = user["role"]
                 u.passcode = user["passcode"]
                 u.event = user["event"]
+                if u.role == eclib.roles.referee:
+                    cls.rooms.append(u)
+                    u.room = len(cls.rooms)
                 u.enable()
             else:
                 u = User(user["name"], user["passcode"], user["role"], user["event"])
                 if u.role == eclib.roles.referee:
+                    print(u.name)
                     cls.rooms.append(u)
                     u.room = len(cls.rooms)
                     password = (''.join(random.choice(string.digits) for _ in range(4)))

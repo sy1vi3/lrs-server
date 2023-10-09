@@ -46,6 +46,10 @@ event_config = "Event Config"
 
 output = "Output"
 
+production = "Production"
+
+home = "Home"
+
 tabs_ = (
     inspection,
     inspection_ctrl,
@@ -59,5 +63,7 @@ tabs_ = (
     settings,
     event_room,
     team_lounge,
-    event_config
+    event_config,
+    production,
+    home
 )

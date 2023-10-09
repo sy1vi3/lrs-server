@@ -158,7 +158,6 @@ async def load(db):
                 eclib.db.users.enabled: 1,
                 eclib.db.users.event: event
             }
-            ech.log(team, event)
             await db.upsert(eclib.db.users.table_, row, eclib.db.users.name)
 
 

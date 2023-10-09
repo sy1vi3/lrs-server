@@ -34,7 +34,21 @@ async def push_config(client):
     with open('files/config.json', 'r') as f:
         config = json.load(f)
     events = config['events']
-    # Test  code valid here
+    for e in events:
+        event_code = e['event-code']
+        headers = {
+            'Accept': 'application/json',
+            "Authorization": f"Basic {tokens.re_test_login}",
+            "X-Auth-Token": tokens.re_write_token,
+            'Content-Type': 'application/json'
+        }
+        event_id = requests.get(f'https://www.robotevents.com/api/v2/events?sku[]={event_code}', headers=headers).json()['data'][0]['id']
+        auth_code = e['auth-code']
+        if auth_code == "":
+            auth_code = "null"
+        authorized = requests.post(f'https://www.robotevents.com/api/live/events/{event_id}/skills_auth_verify?skills_auth_code={auth_code}', headers=headers).status_code
+        e['authorized'] = authorized
+        
     msg = {"api": eclib.apis.event_config, "operation": "push_config", "config": events}
     user = await find_user_from_client(client)
     if user.role == eclib.roles.event_partner:

@@ -10,6 +10,7 @@ import eclib.roles
 import ecusers
 import string
 import random
+import ecmodules.output
 
 async def rm_from_active(team):
     for room in ecusers.User.event_room_data:
@@ -24,6 +25,10 @@ async def rm_from_active(team):
             ecusers.User.event_room_data[room]['active'] = False
             msg = {"api": eclib.apis.livestream, "operation": "update", "room": room, "data": info}
             await ecsocket.send_by_role(msg, eclib.roles.livestream)
+            room_data = ecusers.User.event_room_data
+            msg = {"api": eclib.apis.output, "operation": "setAliveRooms", "data": room_data}
+            await ecsocket.send_by_role(msg, eclib.roles.output)
+            await ecmodules.output.reload_active()
 
 
 async def push_update(db, client=None, user=None):
@@ -195,19 +200,46 @@ async def ctrl_invite(payload, client, user, db):
             team_data = team_data_result[0]
             location = team_data['location']
             team_name = team_data['teamName']
-
+            if (intent := await ech.safe_extract(client, payload, {'intent': str})) is not None:
+                pass
+            else:
+                intent = "Unknown"
             info = {
                 "team": team_num,
                 "location": location,
                 "name": team_name
             }
-            ecusers.User.event_room_data[user.room] = {"passcode": password, "info": info, "active": True}
-            msg = {"api": eclib.apis.livestream, "operation": "update", "room": user.room, "data": info}
-            await ecsocket.send_by_role(msg, eclib.roles.livestream)
-            msg = {"api": eclib.apis.event_ctrl, "operation": "room_code_update", "rooms": ecusers.User.room_codes}
-            await ecsocket.send_by_role(msg, eclib.roles.event_partner)
-            msg = {"api": eclib.apis.event_room, "operation": "ref_room_code_update", "password": password}
-            await ecsocket.send_by_user(msg, user)
+            if user.room in ecusers.User.event_room_data:
+                if ecusers.User.event_room_data[user.room]['active'] == False:
+                    ecusers.User.event_room_data[user.room] = {"passcode": password, "info": info, "active": True, "time": ech.current_time(), "intent": intent}
+                    msg = {"api": eclib.apis.livestream, "operation": "update", "room": user.room, "data": info}
+                    await ecsocket.send_by_role(msg, eclib.roles.livestream)
+                    msg = {"api": eclib.apis.event_ctrl, "operation": "room_code_update", "rooms": ecusers.User.room_codes}
+                    await ecsocket.send_by_role(msg, eclib.roles.event_partner)
+                    msg = {"api": eclib.apis.event_room, "operation": "ref_room_code_update", "password": password}
+                    await ecsocket.send_by_user(msg, user)
+                    room_data = ecusers.User.event_room_data
+                    msg = {"api": eclib.apis.output, "operation": "setAliveRooms", "data": room_data}
+                    await ecsocket.send_by_role(msg, eclib.roles.output)
+                    await ecmodules.output.reload_active()
+                else:
+                    ecusers.User.event_room_data[user.room] = {"passcode": password, "info": info, "active": True, "time": ecusers.User.event_room_data[user.room]['time'], "intent": intent}
+                    msg = {"api": eclib.apis.event_ctrl, "operation": "room_code_update", "rooms": ecusers.User.room_codes}
+                    await ecsocket.send_by_role(msg, eclib.roles.event_partner)
+                    msg = {"api": eclib.apis.event_room, "operation": "ref_room_code_update", "password": password}
+                    await ecsocket.send_by_user(msg, user)
+            else:
+                ecusers.User.event_room_data[user.room] = {"passcode": password, "info": info, "active": True, "time": ech.current_time(), "intent": intent}
+                msg = {"api": eclib.apis.livestream, "operation": "update", "room": user.room, "data": info}
+                await ecsocket.send_by_role(msg, eclib.roles.livestream)
+                msg = {"api": eclib.apis.event_ctrl, "operation": "room_code_update", "rooms": ecusers.User.room_codes}
+                await ecsocket.send_by_role(msg, eclib.roles.event_partner)
+                msg = {"api": eclib.apis.event_room, "operation": "ref_room_code_update", "password": password}
+                await ecsocket.send_by_user(msg, user)
+                room_data = ecusers.User.event_room_data
+                msg = {"api": eclib.apis.output, "operation": "setAliveRooms", "data": room_data}
+                await ecsocket.send_by_role(msg, eclib.roles.output)
+                await ecmodules.output.reload_active()
             return True
     return False
 

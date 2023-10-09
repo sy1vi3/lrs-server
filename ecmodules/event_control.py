@@ -8,6 +8,8 @@ import eclib.db.chat
 import eclib.apis
 import eclib.roles
 import ecmodules.teams
+import ecmodules.chat
+import os
 
 
 async def handler(client, user, operation, payload, db):
@@ -33,6 +35,10 @@ async def handler(client, user, operation, payload, db):
                 ech.INSPECTION_OPEN = extracted["setting"]
             elif extracted["flag"] == "skills":
                 ech.SKILLS_OPEN = extracted["setting"]
+            elif extracted['flag'] == 'robotevents':
+                ech.POST_TO_RE = extracted['setting']
+                msg = {"api": eclib.apis.event_ctrl, "operation": "set_re_button", "linked": ech.POST_TO_RE}
+                await ecsocket.send_by_role(msg, eclib.roles.event_partner)
             await ech.send_error(client, "Successfully " + ("enabled " if extracted["setting"] else "disabled ") + extracted["flag"])
 
     elif operation == "announce":
@@ -48,3 +54,6 @@ async def handler(client, user, operation, payload, db):
     elif operation == "refresh_teams":
         print("UPDATING TEAMS")
         await ecmodules.teams.load(db)
+    elif operation == "wipe_chat":
+        await db.delete_all(eclib.db.chat.table_)
+        await ecmodules.chat.push(db)

@@ -12,12 +12,13 @@ import files.tokens as tokens
 TEAM_CHAT_ENABLED = False
 INSPECTION_OPEN = False
 SKILLS_OPEN = False
+POST_TO_RE = False
 
 INSPECTED_TEAMS = list()
 SKILLS_ATTEMPTS = dict()
 
 def log(message):
-    webhook = DiscordWebhook(url=tokens.webhook_url, content=message)
+    webhook = DiscordWebhook(url=tokens.webhook_url, content=f"`{message}`")
     response = webhook.execute()
 
 

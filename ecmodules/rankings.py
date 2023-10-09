@@ -11,6 +11,7 @@ import csv
 import files.tokens as tokens
 import requests
 import json
+import time
 
 async def get_divs(db):
     divs = []
@@ -24,7 +25,39 @@ async def get_divs(db):
     msg = {"api": eclib.apis.rankings, "operation": "div_fill", "list": divslist}
     await ecsocket.send_by_access(msg, eclib.apis.rankings)
     return divs
+
+async def post_result(event, csv_rows_to_add, div):
+    with open(f'files/{event}.csv', 'w', newline='') as f:
+        skills_writer = csv.writer(f)
+        skills_writer.writerow(['Rank','Team','TotalScore','ProgHighScore','ProgHighScoreStopTime','ProgHighScoreTime','ProgAttempts','DriverHighScore','DriverHighScoreStopTime','DriverHighScoreTime','DriverAttempts','Age Group'])
+        for row in csv_rows_to_add:
+            skills_writer.writerow(row)
+
+    with open('files/config.json', 'r') as f:
+        config = json.load(f)
+        event_code = div
+        skills_auth_code = "null"
+        for obj in config['events']:
+            if obj['event-code'] == div:
+                skills_auth_code = obj['auth-code']
+    read_headers = {"Authorization": f"Bearer {tokens.re_read_token}"}
+    response = requests.get(f'https://www.robotevents.com/api/v2/events?sku[]={event}', headers=read_headers).json()
+    id = response['data'][0]['id']
+
+    endpoint = f"https://www.robotevents.com/api/live/events/{id}/skills?skills_auth_code={skills_auth_code}"
+    headers = {
+        "X-Auth-Token": tokens.re_write_token,
+        "Accept": "application/json",
+        "Authorization": f"Basic {tokens.re_test_login}"
+    }
+    files = {'file': open(f'files/{event}.csv', 'rb')}
+
+    r = requests.post(endpoint, headers=headers, files=files)
+
+    # ech.log(f"Updated Scores, Response code {r.status_code}")
+
 async def calc_rankings(db):
+    start_time = time.time()
     divs = await get_divs(db)
     div_ranks = {}
 
@@ -216,39 +249,11 @@ async def calc_rankings(db):
 
             rankingDict[rank] = {"rank": rank, "team": team, "combined": combined, "prog": prog, "prog_2":prog_2, "driver_2":driver_2, "stoptime": stoptime, "prog_stoptime":prog_stoptime, "prog_3":prog_3, "driver_3":driver_3}
         div_ranks[div] = rankingDict
-        with open('files/skills.csv', 'w', newline='') as f:
-            skills_writer = csv.writer(f)
-            skills_writer.writerow(['Rank','Team','TotalScore','ProgHighScore','ProgHighScoreStopTime','ProgHighScoreTime','ProgAttempts','DriverHighScore','DriverHighScoreStopTime','DriverHighScoreTime','DriverAttempts','Age Group'])
-            ech.log(div)
-            for row in csv_rows_to_add:
-                skills_writer.writerow(row)
-                ech.log(row)
-
-        with open('files/config.json', 'r') as f:
-            config = json.load(f)
-            event_code = div
-            skills_auth_code = "null"
-            for obj in config['events']:
-                if obj['event-code'] == div:
-                    skills_auth_code = obj['auth-code']
-        read_headers = {"Authorization": f"Bearer {tokens.re_read_token}"}
-        response = requests.get(f'https://www.robotevents.com/api/v2/events?sku[]={event_code}', headers=read_headers).json()
-        id = response['data'][0]['id']
-
-        endpoint = f"https://www.robotevents.com/api/live/events/{id}/skills?skills_auth_code={skills_auth_code}"
-        headers = {
-            "X-Auth-Token": tokens.re_write_token,
-            "Accept": "application/json",
-            "Authorization": f"Basic {tokens.re_test_login}"
-        }
-        files = {'file': open('files/skills.csv', 'rb')}
-
-        r = requests.post(endpoint, headers=headers, files=files)
-
-        ech.log(f"Updated Scores, Response code {r.status_code}")
+        if ech.POST_TO_RE:
+            await post_result(div, csv_rows_to_add, div)
     msg = {"api": eclib.apis.rankings, "operation": "return_data", "list": div_ranks}
     await ecsocket.send_by_access(msg, eclib.apis.rankings)
-
+    print(time.time()-start_time)
 
 
 async def send_rankings(db):

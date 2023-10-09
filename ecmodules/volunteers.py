@@ -57,7 +57,9 @@ async def add(db, data):
 
 async def edit(db, data):
     all_users = await db.select(eclib.db.users.table_, [])
-
+    # print("_________ Before")
+    # for u in ecusers.User.userlist:
+    #     print(u.name)
     used_codes = list()
     for u in all_users:
         used_codes.append([u['passcode'], u['name']])
@@ -92,7 +94,9 @@ async def edit(db, data):
         ech.log("USEREDIT FAILED: DUPLICATE NAME")
     await get_volunteers(db)
     await ecusers.User.load_users(db)
-
+    # print("_________ After")
+    # for u in ecusers.User.userlist:
+    #     print(u.name, " | ", u.enabled)
 async def handler(db, operation, payload, user):
     if operation == "get_volunteers":
         await get_volunteers(db)

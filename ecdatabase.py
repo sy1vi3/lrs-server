@@ -196,3 +196,8 @@ class Database:
             inputs.append(cond[2])
         self.cursor.execute(statement, inputs)
         self.connection.commit()
+    async def delete_all(self, table):
+        inputs = list()
+        statement = "DELETE FROM " + table
+        self.cursor.execute(statement)
+        self.connection.commit()

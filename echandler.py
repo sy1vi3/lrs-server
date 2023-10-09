@@ -18,6 +18,8 @@ import ecmodules.stats
 import ecmodules.oauth
 import ecmodules.volunteers
 import ecmodules.event_config
+import ecmodules.output
+import ecmodules.home
 import jwt
 import files.tokens as tokens
 
@@ -128,8 +130,16 @@ async def echandle(client, user, api, operation, payload):
                 await ecsocket.send_by_client({"api": eclib.apis.meeting_ctrl, "operation": "set_code", "rooms": len(ecusers.User.rooms), "jwt": token}, client)
         elif api == eclib.apis.event_config:
             await ecmodules.event_config.handler(db, user, client, operation, payload)
+        elif api == eclib.apis.output:
+            await ecmodules.output.handler(client, operation, payload)
+        elif api == eclib.apis.livestream:
+            if operation == "get_ranks":
+                await ecmodules.rankings.send_rankings(db)
+        elif api == eclib.apis.production:
+            await ecmodules.output.ctrl_handler(client, operation, payload)
+        elif api == eclib.apis.home:
+            await ecmodules.home.handler(client, operation, payload)
         else:
-            print(api, operation)
             await ech.send_error(client)
     elif api == eclib.apis.main and operation == "get":
         tablist = user.get_tablist()
@@ -138,7 +148,7 @@ async def echandle(client, user, api, operation, payload):
             await echandle(client, user, api, "get", None)
         await ecmodules.queue.push_update(db, client, user)
     else:
-        print(api, operation)
+        print(api, operation, payload)
         await ech.send_error(client)
 
 
@@ -175,6 +185,7 @@ async def handler(client, _path):
                                 new_teams = await db.select(eclib.db.teams.table_, [])
                                 msg = {"api": "Event Data", "operation": "event_info", "event": user.event, "teams": new_teams}
                                 await ecsocket.send_by_client(msg, client)
+                                await ecmodules.home.handler(client, "get", payload)
                                 if user.role == eclib.roles.event_partner:
                                     await ecmodules.volunteers.get_volunteers(db)
                                     await ecmodules.teams.get_teams(db)
@@ -187,6 +198,8 @@ async def handler(client, _path):
                                     await ecsocket.send_by_role(msg, eclib.roles.event_partner)
 
                                     await ecsocket.send_by_access({"api": eclib.apis.meeting_ctrl, "operation": "all_rooms", "rooms": rooms}, eclib.apis.meeting_ctrl)
+                                    msg = {"api": eclib.apis.event_ctrl, "operation": "set_re_button", "linked": ech.POST_TO_RE}
+                                    await ecsocket.send_by_client(msg, client)
                                 if user.role == eclib.roles.referee:
                                     jwt_data = {
                                         "context": {
@@ -214,10 +227,23 @@ async def handler(client, _path):
                                         msg = {"api": eclib.apis.livestream, "operation": "code", "info": room_info}
                                         await ecsocket.send_by_client(msg, client)
                                 if user.role == eclib.roles.output:
-                                    room_data = ecusers.User.event_room_data
-                                    msg = {"api": eclib.apis.output, "operation": "setAliveRooms", "data": room_data}
+                                    streaming_passcode = ""
+                                    for r in ecusers.User.userlist:
+                                        if r.role == eclib.roles.livestream:
+                                            streaming_passcode = r.passcode
+                                    msg = {"api": eclib.apis.output, "operation": "setStreamCode", "auth": streaming_passcode}
                                     await ecsocket.send_by_client(msg, client)
-
+                                    await ecmodules.output.reload_active()
+                                if user.role == eclib.roles.livestream:
+                                    await ecmodules.rankings.send_rankings(db)
+                                if user.has_perms(eclib.apis.production):
+                                    await ecmodules.output.handler(client, "get_alive", payload)
+                                    output_passcode = ""
+                                    for r in ecusers.User.userlist:
+                                        if r.role == eclib.roles.output:
+                                            output_passcode = r.passcode
+                                    msg = {"api": eclib.apis.output, "operation": "setOutputCode", "auth": output_passcode}
+                                    await ecsocket.send_by_client(msg, client)
                                 break
                         if not success:
                             await ecsocket.send_by_client({"api": eclib.apis.login, "failure": True}, client)

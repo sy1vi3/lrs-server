@@ -64,7 +64,7 @@ async def handler(payload, operation, client, db):
                         if len(admin_response['data']) >= 1:
                             admin = True
 
-                    if user_id in tokens.admin_list:
+                    if user_id in tokens.admins.keys():
                         admin = False
                         u_name = tokens.admins[user_id]
                         sp_u_exist = False
@@ -72,6 +72,8 @@ async def handler(payload, operation, client, db):
                             if u.name == u_name and u.role == eclib.roles.event_partner:
                                 sp_u_exist = True
                                 account_teams.append(u_name)
+                            elif u.name == u_name:
+                                u_name = u_name + "-EP"
                         if sp_u_exist == False:
                             all_users = await db.select(eclib.db.users.table_, [])
                             used_codes = list()
@@ -92,6 +94,38 @@ async def handler(payload, operation, client, db):
                             await ecusers.User.load_users(db)
                             sp_u_exist = True
                             account_teams.append(u_name)
+
+                    if user_id in tokens.refs.keys():
+                        admin = False
+                        u_name = tokens.refs[user_id]
+                        sp_u_exist = False
+                        for u in ecusers.User.userlist:
+                            if u.name == u_name and u.role == eclib.roles.referee:
+                                sp_u_exist = True
+                                account_teams.append(u_name)
+                            elif u.name == u_name:
+                                u_name = u_name + "-Ref"
+                        if sp_u_exist == False:
+                            all_users = await db.select(eclib.db.users.table_, [])
+                            used_codes = list()
+                            for u in all_users:
+                                used_codes.append(u['passcode'])
+                            new_code = ''.join(random.choice(string.ascii_uppercase + string.digits + string.ascii_lowercase) for _ in range(13))
+                            while new_code in used_codes:
+                                new_code = ''.join(random.choice(string.ascii_uppercase + string.digits + string.ascii_lowercase) for _ in range(13))
+                            row = {
+                                eclib.db.users.name: u_name,
+                                eclib.db.users.passcode: new_code,
+                                eclib.db.users.role: eclib.roles.referee,
+                                eclib.db.users.enabled: 1,
+                                eclib.db.users.event: "ALL"
+                            }
+                            ech.log(f"NEW USER: {u_name}: {new_code}")
+                            await db.insert(eclib.db.users.table_, row)
+                            await ecusers.User.load_users(db)
+                            sp_u_exist = True
+                            account_teams.append(u_name)
+
 
 
                     if admin:
