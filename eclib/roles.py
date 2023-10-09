@@ -20,12 +20,12 @@ RW_ = {
 }
 
 RO_ = {
-    team: (ecapis.skills_scores, ecapis.rankings),
-    event_partner: (ecapis.skills_scores, ecapis.rankings),
-    referee: (ecapis.skills_scores, ecapis.rankings),
-    staff: (ecapis.inspection_ctrl, ecapis.skills_ctrl, ecapis.skills_scores, ecapis.rankings),
-    observer: (ecapis.chat, ecapis.inspection_ctrl, ecapis.skills_ctrl, ecapis.skills_scores, ecapis.rankings),
-    livestream: (ecapis.livestream, ecapis.rankings)
+    team: (ecapis.skills_scores, ecapis.rankings, ecapis.stats),
+    event_partner: (ecapis.skills_scores, ecapis.rankings, ecapis.stats),
+    referee: (ecapis.skills_scores, ecapis.rankings, ecapis.stats),
+    staff: (ecapis.inspection_ctrl, ecapis.skills_ctrl, ecapis.skills_scores, ecapis.rankings, ecapis.stats),
+    observer: (ecapis.chat, ecapis.inspection_ctrl, ecapis.skills_ctrl, ecapis.skills_scores, ecapis.rankings, ecapis.stats),
+    livestream: (ecapis.livestream, ecapis.rankings, ecapis.stats)
 }
 
 STAFF_ROLES_ = (event_partner, referee, staff)
