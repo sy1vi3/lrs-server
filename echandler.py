@@ -80,6 +80,8 @@ async def echandle(client, user, api, operation, payload):
             await ecmodules.volunteers.handler(db, operation, payload, user)
         elif api == eclib.apis.oauth:
             print(api)
+        elif api == eclib.apis.team_control:
+            await ecmodules.teams.handler(db, operation, payload)
         elif api == eclib.apis.meeting_ctrl:
             if operation == "init":
                 await ecsocket.send_by_client({"api": eclib.apis.meeting_ctrl, "rooms": len(ecusers.User.rooms)}, client)
@@ -124,11 +126,12 @@ async def handler(client, _path):
                                 await echandle(client, user, eclib.apis.main, "get", None)
                                 if user.role == eclib.roles.event_partner:
                                     await ecmodules.volunteers.get_volunteers(db)
+                                    await ecmodules.teams.get_teams(db)
                                 break
                         if not success:
                             await ecsocket.send_by_client({"api": eclib.apis.login, "failure": True}, client)
                 elif extracted["api"] == eclib.apis.oauth:
-                    await ecmodules.oauth.handler(payload, extracted['operation'], client)
+                    await ecmodules.oauth.handler(payload, extracted['operation'], client, db)
                 else:
                     if (user := find_user_from_client(client)) is not None:
                         await echandle(client, user, extracted["api"], extracted["operation"], payload)

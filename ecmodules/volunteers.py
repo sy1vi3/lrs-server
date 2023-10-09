@@ -28,7 +28,7 @@ async def delete(db, user, data):
 
 async def add(db, data):
     all_users = await db.select(eclib.db.users.table_, [])
-    if data['Passcode'] == "changeme":
+    if data['Passcode'] == "changeme" or data['Passcode'] == "":
         used_codes = list()
         for u in all_users:
             used_codes.append(u['passcode'])
@@ -55,10 +55,20 @@ async def add(db, data):
 
 async def edit(db, data):
     all_users = await db.select(eclib.db.users.table_, [])
-    if data['Passcode'] == "changeme":
-        used_codes = list()
-        for u in all_users:
-            used_codes.append(u['passcode'])
+
+    used_codes = list()
+    for u in all_users:
+        used_codes.append([u['passcode'], u['name']])
+    codesonly = list()
+    for u in all_users:
+        codesonly.append(u['passcode'])
+
+    passcode_safe = True
+    for u in used_codes:
+        if u[0] == data['Passcode'] and u[1] != data['Name']:
+            passcode_safe = False
+
+    if data['Passcode'] == "changeme" or passcode_safe == False or data['Passcode'] == "":
         new_code = ''.join(random.choice(string.ascii_uppercase + string.digits + string.ascii_lowercase) for _ in range(13))
         while new_code in used_codes:
             new_code = ''.join(random.choice(string.ascii_uppercase + string.digits + string.ascii_lowercase) for _ in range(13))

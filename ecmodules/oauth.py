@@ -1,6 +1,7 @@
 import eclib.db.skills
 import eclib.db.rankings
 import eclib.db.teams
+import eclib.db.users
 import ecsocket
 import eclib.apis
 import ecusers
@@ -14,7 +15,7 @@ import json
 
 
 
-async def handler(payload, operation, client):
+async def handler(payload, operation, client, db):
     if operation == "send_code":
         if (code := payload['code']) is not None:
             endpoint = "https://test.robotevents.com/oauth/token"
@@ -47,12 +48,11 @@ async def handler(payload, operation, client):
                     account_data = {}
                     for team in data:
                         account_teams.append(team['number'])
+                    teams = await db.select(eclib.db.users.table_, [("role", "==", eclib.roles.team)])
                     for team in account_teams:
-                        with open('files/teams.csv', newline='') as teamsfile:
-                            teamsreader = csv.DictReader(teamsfile, quoting=csv.QUOTE_ALL)
-                            for row in teamsreader:
-                                if(row['Team Number'] == team):
-                                    teams_codes.append([team, row['Passcode']])
+                        for row in teams:
+                            if(row['name'] == team):
+                                teams_codes.append([team, row['passcode']])
                     for team in teams_codes:
                         account_data[team[0]] = team[1]
                     msg = {"api": "OAuth", "operation": "teams_codes", "codes": account_data}

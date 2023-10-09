@@ -12,7 +12,7 @@ livestream = "Livestream"
 
 RW_ = {
     team: (ecapis.chat, ecapis.inspection, ecapis.skills),
-    event_partner: (ecapis.chat, ecapis.inspection_ctrl, ecapis.skills_ctrl, ecapis.meeting_ctrl, ecapis.event_ctrl, ecapis.tech_support, ecapis.volunteers),
+    event_partner: (ecapis.chat, ecapis.inspection_ctrl, ecapis.skills_ctrl, ecapis.meeting_ctrl, ecapis.event_ctrl, ecapis.tech_support, ecapis.volunteers, ecapis.team_control),
     referee: (ecapis.chat, ecapis.inspection_ctrl, ecapis.skills_ctrl),
     staff: (ecapis.chat,),
     observer: tuple(),

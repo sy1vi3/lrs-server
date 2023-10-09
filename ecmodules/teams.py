@@ -12,6 +12,16 @@ import string
 import requests
 import files.tokens as tokens
 import ecusers
+import ecsocket
+
+async def get_teams(db):
+    teams = dict()
+    team_users = await db.select(eclib.db.users.table_, [(eclib.db.users.role, "==", eclib.roles.team)])
+    for user in team_users:
+        teams[user["name"]] = {"Role": user["role"], "Passcode": user["passcode"]}
+    msg = {"api": "Team Control", "operation": "update_teams", "teams": teams}
+    print("Sending Team Info")
+    await ecsocket.send_by_access(msg, eclib.apis.event_ctrl)
 
 
 async def load(db):
@@ -132,3 +142,39 @@ async def load(db):
         await db.delete(eclib.db.users.table_, [(eclib.db.users.name, "==", team)])
 
     await ecusers.User.load_users(db)
+    await get_teams(db)
+
+async def handler(db, operation, payload):
+    if operation == "edit":
+        all_users = await db.select(eclib.db.users.table_, [])
+        user_edit_data = payload['user_info']
+        teamnum = user_edit_data['Name']
+        passcode = user_edit_data['Passcode']
+
+        used_codes = list()
+        for u in all_users:
+            used_codes.append([u['passcode'], u['name']])
+        codesonly = list()
+        for u in all_users:
+            codesonly.append(u['passcode'])
+
+        passcode_safe = True
+        for u in used_codes:
+            if u[0] == passcode and u[1] != teamnum:
+                passcode_safe = False
+
+        if passcode == "changeme" or passcode_safe == False or passcode == "":
+            new_code = ''.join(random.choice(string.ascii_uppercase + string.digits + string.ascii_lowercase) for _ in range(13))
+            while new_code in codesonly:
+                new_code = ''.join(random.choice(string.ascii_uppercase + string.digits + string.ascii_lowercase) for _ in range(13))
+            passcode = new_code
+
+        row = {
+            eclib.db.users.name: teamnum,
+            eclib.db.users.passcode: passcode,
+            eclib.db.users.role: eclib.roles.team
+        }
+
+        await db.update(eclib.db.users.table_, [(eclib.db.users.name, "==", teamnum), (eclib.db.users.role, "==", eclib.roles.team)], row)
+        await get_teams(db)
+        await ecusers.User.load_users(db)

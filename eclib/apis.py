@@ -34,6 +34,8 @@ oauth = "OAuth"
 
 volunteers = "Volunteers"
 
+team_control = "Team Control"
+
 tabs_ = (
     inspection,
     inspection_ctrl,
